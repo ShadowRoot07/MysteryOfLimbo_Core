@@ -5,12 +5,12 @@
 Player::Player() {
     pos = {100.0f, 100.0f};
     vel = {0.0f, 0.0f};
-    hitbox = {100.0f, 100.0f, 32.0f, 48.0f}; 
+    hitbox = {100.0f, 100.0f, 32.0f, 48.0f};
     isGrounded = false;
     health = 100.0f;
     maxHealth = 100.0f;
     speed = 300.0f;
-    jumpForce = -600.0f; 
+    jumpForce = -600.0f;
     dashCooldown = 0.0f;
     dashTimer = 0.0f;
     isDashing = false;
@@ -18,26 +18,25 @@ Player::Player() {
 }
 
 void Player::HandleInput(InputManager& input) {
-    // --- DEBUG TACTIL (TELETRANSPORTE) ---
-    if (input.WasMouseClicked()) {
-        pos.x = (float)input.GetMouseX() - (hitbox.w / 2.0f);
-        pos.y = (float)input.GetMouseY() - (hitbox.h / 2.0f);
-        vel.y = 0; // Resetear caída al soltarlo
-        input.ResetMouseClick();
-        return; // Prioridad al toque
-    }
-
     if (isDashing) return;
 
+    // Resetear velocidad horizontal
     vel.x = 0;
-    if (input.IsKeyDown(SDL_SCANCODE_LEFT)) vel.x = -speed;
-    if (input.IsKeyDown(SDL_SCANCODE_RIGHT)) vel.x = speed;
 
+    // Movimiento Horizontal (Teclado o Joystick)
+    if (input.IsKeyDown(SDL_SCANCODE_LEFT)) {
+        vel.x = -speed;
+    } else if (input.IsKeyDown(SDL_SCANCODE_RIGHT)) {
+        vel.x = speed;
+    }
+
+    // Salto (Tecla Z o Botón Virtual)
     if (input.IsKeyPressed(SDL_SCANCODE_Z) && isGrounded) {
         vel.y = jumpForce;
         isGrounded = false;
     }
 
+    // Dash (Tecla X)
     if (input.IsKeyPressed(SDL_SCANCODE_X) && dashCooldown <= 0) {
         float dir = (vel.x >= 0) ? 1.0f : -1.0f;
         ApplyDash(dir);
@@ -49,7 +48,7 @@ void Player::ApplyDash(float direction) {
     dashTimer = 0.2f;
     dashCooldown = 0.8f;
     vel.x = direction * speed * 3.0f;
-    vel.y = 0; 
+    vel.y = 0;
 }
 
 void Player::Update(float dt) {
@@ -60,11 +59,11 @@ void Player::Update(float dt) {
         dashTimer -= dt;
         if (dashTimer <= 0) isDashing = false;
     } else {
-        // --- LA PIEZA FALTANTE: GRAVEDAD ---
-        vel.y += 1500.0f * dt; 
+        // Gravedad constante
+        vel.y += 1500.0f * dt;
     }
 
-    // Limitar velocidad de caída (Terminal Velocity)
+    // Velocidad terminal
     if (vel.y > 1000.0f) vel.y = 1000.0f;
 
     pos.x += vel.x * dt;
