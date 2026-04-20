@@ -6,7 +6,7 @@
 struct JoystickData {
     float x, y;
     bool isActive;
-    SDL_FingerID fingerID; // Rastreo de dedo para multitouch
+    SDL_FingerID fingerID;
 };
 
 class InputManager {
@@ -19,18 +19,23 @@ public:
     bool IsKeyPressed(SDL_Scancode key);
 
     JoystickData GetJoystick() const { return joystick; }
-    bool IsJumpButtonPressed() const { return virtualJump; }
 
 private:
     const Uint8* state;
     Uint8 lastState[SDL_NUM_SCANCODES];
 
     JoystickData joystick;
-    bool virtualJump;
-    SDL_FingerID jumpFingerID; // ID del dedo que presiona saltar
+    
+    // Estados de botones virtuales
+    bool vJump;
+    bool vAttack;
+    bool vDash;
 
+    // Áreas de botones táctiles
     SDL_Rect joystickArea;
-    SDL_Rect jumpButtonArea;
+    SDL_Rect btnZArea;
+    SDL_Rect btnXArea;
+    SDL_Rect btnFArea;
 };
 
 #endif
