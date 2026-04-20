@@ -1,5 +1,7 @@
 # Mystery of the limb (core)
 
+Videojuego metroidvania, hay mucho ppr hacer...
+
 ## Análisis de la Arquitectura 
 
 El motor funciona bajo un esquema de Game Loop (Bucle de Juego) clásico, donde cada componente tiene una responsabilidad única y se comunican en un orden específico:
