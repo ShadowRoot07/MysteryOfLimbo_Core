@@ -3,7 +3,7 @@
 
 #include "Common.h"
 
-enum PlatformType { NORMAL, SPIKE, BOUNCY };
+enum PlatformType { NORMAL, SPIKE, BOUNCY, TILE };
 
 struct Platform {
     Rect bounds;
@@ -12,4 +12,3 @@ struct Platform {
 };
 
 #endif
-
