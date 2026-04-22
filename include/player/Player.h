@@ -9,7 +9,8 @@ public:
     Player();
     void HandleInput(InputManager& input);
     void Update(float dt);
-    void TakeDamage(float amount);
+    // Ahora recibe la X del origen del daño para calcular la dirección del empuje
+    void TakeDamage(float amount, float sourceX);
 
     float GetHealth() const { return health; }
     bool IsDashing() const { return isDashing; }
@@ -17,22 +18,19 @@ public:
     Rect GetAttackRect() const;
 
 private:
-    float health; // Eliminamos maxHealth para limpiar el warning
+    float health;
     float speed;
     float jumpForce;
-    
-    // Lógica de Dash
+
     float dashCooldown;
     float dashTimer;
     bool isDashing;
-    
-    // Control de daño e invulnerabilidad
+
     float invulTimer;
-    
-    // Combate
+
     float attackTimer;
     float attackCooldown;
-    int faceDir; // 1 derecha, -1 izquierda
+    int faceDir; 
 
     void ApplyDash(float direction);
     void ApplyAttack();
