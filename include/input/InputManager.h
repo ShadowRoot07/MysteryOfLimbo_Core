@@ -4,7 +4,7 @@
 #include <SDL.h>
 
 struct JoystickData {
-    float x, y;
+    float x, y; // Añadido eje Y
     bool isActive;
     SDL_FingerID fingerID;
 };
@@ -25,13 +25,10 @@ private:
     Uint8 lastState[SDL_NUM_SCANCODES];
 
     JoystickData joystick;
-    
-    // Estados de botones virtuales
-    bool vJump;
-    bool vAttack;
-    bool vDash;
 
-    // Áreas de botones táctiles
+    bool vJump, vAttack, vDash;
+    bool lastVJump, lastVAttack, lastVDash;
+
     SDL_Rect joystickArea;
     SDL_Rect btnZArea;
     SDL_Rect btnXArea;

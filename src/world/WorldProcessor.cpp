@@ -2,80 +2,119 @@
 #include "player/Player.h"
 #include "world/Enemy.h"
 #include "physics/Collision.h"
-#include <vector> // <--- Esencial para que funcione std::vector
+#include <vector>
+#include <cmath>
+#include <SDL.h>
 
 void ProcessWorld(Player& p, std::vector<Platform>& level, std::vector<Enemy>& enemies, std::vector<Projectile>& bullets, float dt) {
     p.isGrounded = false;
-    
-    // Colisiones con plataformas
+
+    // 1. Colisiones Jugador vs Plataformas
     for (auto& plat : level) {
         if (PhysicsEngine::AABB(p.hitbox, plat.bounds)) {
             PhysicsEngine::ResolvePlatformCollision(p, plat.bounds);
-            if (plat.type == SPIKE) p.TakeDamage(25);
         }
     }
 
-    // Lógica de Ataque del Jugador
-    if (p.IsAttacking()) {
-        Rect atk = p.GetAttackRect();
-        for (auto& e : enemies) {
-            if (PhysicsEngine::AABB(atk, e.hitbox)) {
-                e.health -= 25;
-                e.pos.x += (p.pos.x < e.pos.x ? 20 : -20); // Knockback
-            }
-        }
-    }
-
-    // Lógica de Enemigos e IA
+    // 2. Procesamiento de enemigos
     for (auto it = enemies.begin(); it != enemies.end(); ) {
-        if (it->health <= 0) {
-            it = enemies.erase(it);
-            continue;
+        if (it->health <= 0) { 
+            it = enemies.erase(it); 
+            continue; 
         }
 
+        // --- LÓGICA DE MOVIMIENTO ---
         if (it->type == WALKER) {
             it->pos.x += it->dir * 100.0f * dt;
-            it->timer += dt;
-            if (it->timer > 2.0f) { it->dir *= -1; it->timer = 0; }
+            it->hitbox.x = it->pos.x; 
+            it->hitbox.y = it->pos.y;
+
+            // Sensor de suelo para no caerse de plataformas
+            bool groundAhead = false;
+            float sensorX = (it->dir == 1) ? it->pos.x + it->hitbox.w : it->pos.x - 5;
+            Rect sensor = { sensorX, it->pos.y + it->hitbox.h + 5, 5, 5 };
+            
+            for (const auto& plat : level) {
+                if (PhysicsEngine::AABB(sensor, plat.bounds)) { 
+                    groundAhead = true; 
+                    break; 
+                }
+            }
+            if (!groundAhead) it->dir *= -1; // Cambiar dirección si no hay suelo
         }
         else if (it->type == FLYER) {
-            it->pos.x += it->dir * 150.0f * dt;
-            it->pos.y += (float)sin(SDL_GetTicks() * 0.005f) * 2.0f;
+            it->pos.x += it->dir * 120.0f * dt;
+            // Movimiento sinusoidal para que se vea como vuelo
+            it->pos.y += sin(SDL_GetTicks() * 0.005f) * 2.0f;
+            it->hitbox.x = it->pos.x; 
+            it->hitbox.y = it->pos.y;
+            
+            // Si choca con una pared (plataforma), cambia de dirección
+            for (const auto& plat : level) {
+                if (PhysicsEngine::AABB(it->hitbox, plat.bounds)) {
+                    it->dir *= -1;
+                    break;
+                }
+            }
         }
         else if (it->type == TURRET) {
             it->timer += dt;
-            if (it->timer > 1.5f) {
-                bullets.push_back({{it->pos.x, it->pos.y}, {(p.pos.x < it->pos.x ? -300.0f : 300.0f), 0}, {0,0,10,10}, true});
+            if (it->timer > 2.0f) {
+                float dx = (p.pos.x + 16) - it->pos.x;
+                float dy = (p.pos.y + 24) - it->pos.y;
+                float angle = atan2(dy, dx);
+                // Dispara bala enemiga
+                bullets.push_back({{it->pos.x + 10, it->pos.y + 10}, {cos(angle)*300, sin(angle)*300}, {0,0,12,12}, true});
                 it->timer = 0;
             }
         }
 
-        it->hitbox.x = it->pos.x;
-        it->hitbox.y = it->pos.y;
+        // --- COLISIÓN ENEMIGO VS JUGADOR ---
+        if (PhysicsEngine::AABB(p.hitbox, it->hitbox)) {
+            p.TakeDamage(10, it->pos.x);
+        }
         
-        if (PhysicsEngine::AABB(p.hitbox, it->hitbox)) p.TakeDamage(20);
         ++it;
     }
 
-    // Procesar Proyectiles
+    // 3. Procesamiento de proyectiles
     for (auto it = bullets.begin(); it != bullets.end(); ) {
-        if (!it->active) {
-            it = bullets.erase(it);
-            continue;
-        }
         it->pos.x += it->vel.x * dt;
-        it->hitbox.x = it->pos.x;
+        it->pos.y += it->vel.y * dt;
+        it->hitbox.x = it->pos.x; 
         it->hitbox.y = it->pos.y;
 
+        bool destroyed = false;
+
+        // Bala vs Jugador
         if (PhysicsEngine::AABB(p.hitbox, it->hitbox)) {
-            p.TakeDamage(10);
-            it->active = false;
+            p.TakeDamage(10, it->pos.x);
+            destroyed = true;
         }
-        
-        // Auto-destruir balas fuera de rango (opcional)
-        if (std::abs(it->pos.x - p.pos.x) > 1000) it->active = false;
-        
-        ++it;
+
+        // Bala vs Plataformas
+        for (const auto& plat : level) {
+            if (PhysicsEngine::AABB(it->hitbox, plat.bounds)) {
+                destroyed = true;
+                break;
+            }
+        }
+
+        // Bala vs Otros Enemigos (Solo si quieres que se dañen entre ellos o si el jugador dispara)
+        // Por ahora, destruye la bala si toca a un enemigo diferente al que la disparó
+        for (auto& en : enemies) {
+            if (PhysicsEngine::AABB(it->hitbox, en.hitbox)) {
+                // Si implementas balas del jugador, aquí restarías vida: en.health -= damage;
+                destroyed = true;
+                break;
+            }
+        }
+
+        if (destroyed || !it->active || std::abs(it->pos.x - p.pos.x) > 1000) {
+            it = bullets.erase(it);
+        } else {
+            ++it;
+        }
     }
 }
 

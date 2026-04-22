@@ -1,111 +1,148 @@
 #include <SDL.h>
 #include <vector>
+#include <iostream>
 #include <string>
-#include <cmath>
-#include "Common.h"
-#include "input/InputManager.h"
-#include "player/Player.h"
-#include "world/Platform.h"
+
+// Organización de headers por módulos
+#include "ui/UIManager.h"
 #include "world/Camera.h"
 #include "world/Enemy.h"
+#include "world/Platform.h"
+#include "player/Player.h"
+#include "input/InputManager.h"
 
+// Declaraciones de funciones externas definidas en otros .cpp
 extern void ProcessWorld(Player& p, std::vector<Platform>& level, std::vector<Enemy>& enemies, std::vector<Projectile>& bullets, float dt);
-extern std::vector<Platform> LoadLevel(const std::string& path);
+extern std::vector<Platform> LoadLevel(const std::string& path, std::vector<Enemy>& enemies);
 
 int main(int argc, char* argv[]) {
-    SDL_Init(SDL_INIT_VIDEO);
-    SDL_DisplayMode dm;
-    SDL_GetCurrentDisplayMode(0, &dm);
-    SDL_Window* window = SDL_CreateWindow("Shadow Core", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, dm.w, dm.h, SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN_DESKTOP);
+    // Inicialización de SDL
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "No se pudo inicializar SDL: " << SDL_GetError() << std::endl;
+        return 1;
+    }
+
+    // Configuración de ventana y renderizado
+    // Usamos 800x600 como resolución lógica para mantener consistencia en el ZTE
+    SDL_Window* window = SDL_CreateWindow("Mystery of Limbo", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_SHOWN);
+    if (!window) {
+        std::cerr << "Error al crear ventana: " << SDL_GetError() << std::endl;
+        return 1;
+    }
+
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    SDL_RenderSetLogicalSize(renderer, 800, 600);
+    if (!renderer) {
+        std::cerr << "Error al crear renderer: " << SDL_GetError() << std::endl;
+        return 1;
+    }
 
-    // Assets
-    SDL_Texture* texBase = SDL_CreateTextureFromSurface(renderer, SDL_LoadBMP(Assets::JOY_BASE));
-    SDL_Texture* texKnob = SDL_CreateTextureFromSurface(renderer, SDL_LoadBMP(Assets::JOY_KNOB));
-    SDL_Texture* texBtnZ = SDL_CreateTextureFromSurface(renderer, SDL_LoadBMP(Assets::BTN_Z));
-    SDL_Texture* texBtnX = SDL_CreateTextureFromSurface(renderer, SDL_LoadBMP(Assets::BTN_X));
-    SDL_Texture* texBtnF = SDL_CreateTextureFromSurface(renderer, SDL_LoadBMP(Assets::BTN_F));
-
+    // Instancia de Managers y Entidades
     InputManager input;
+    UIManager ui;
     Player player;
     Camera camera(800, 600);
     
-    std::vector<Platform> level = LoadLevel("assets/maps/test_level.txt");
     std::vector<Enemy> enemies;
     std::vector<Projectile> bullets;
 
-    // Inicialización manual de enemigos (corregida para evitar errores de push_back)
-    Enemy e1; e1.pos = {400, 300}; e1.hitbox = {400, 300, 32, 48}; e1.type = WALKER; enemies.push_back(e1);
-    Enemy e2; e2.pos = {600, 200}; e2.hitbox = {600, 200, 32, 48}; e2.type = FLYER; enemies.push_back(e2);
-    Enemy e3; e3.pos = {200, 450}; e3.hitbox = {200, 450, 32, 48}; e3.type = TURRET; enemies.push_back(e3);
+    // Carga de Mapa y Assets
+    std::vector<Platform> level = LoadLevel("assets/maps/test_level.txt", enemies);
+
+    if (!ui.LoadAssets(renderer)) {
+        std::cerr << "Error critico: No se pudieron cargar los assets de la UI en assets/sprites/ui/" << std::endl;
+        // No salimos del programa, pero la UI no se verá
+    }
 
     bool running = true;
     SDL_Event ev;
     Uint32 lastTime = SDL_GetTicks();
 
+    // Loop Principal
     while (running) {
         Uint32 currentTime = SDL_GetTicks();
         float dt = (currentTime - lastTime) / 1000.0f;
         lastTime = currentTime;
         if (dt > 0.05f) dt = 0.05f;
 
+        // 1. PRIMERO actualizamos el estado anterior (Copia de seguridad)
+        input.Update();
+
+        // 2. SEGUNDO procesamos nuevos eventos del frame actual
         while (SDL_PollEvent(&ev)) {
             if (ev.type == SDL_QUIT) running = false;
             input.HandleRawEvent(ev);
         }
 
-        input.Update();
+        // 3. TERCERO procesamos la lógica con los estados ya diferenciados
         player.HandleInput(input);
         player.Update(dt);
         ProcessWorld(player, level, enemies, bullets, dt);
         camera.Follow(player.pos, dt);
 
-        SDL_SetRenderDrawColor(renderer, 10, 10, 15, 255);
+        // --- RENDERIZADO ---
+        // Color de fondo oscuro (estilo Limbo)
+        SDL_SetRenderDrawColor(renderer, 15, 15, 25, 255);
         SDL_RenderClear(renderer);
 
+        // 1. Dibujar Plataformas (con offset de cámara)
         for (const auto& plat : level) {
-            SDL_Rect r = { (int)(plat.bounds.x - camera.pos.x), (int)(plat.bounds.y - camera.pos.y), (int)plat.bounds.w, (int)plat.bounds.h };
-            if (plat.type == SPIKE) SDL_SetRenderDrawColor(renderer, 255, 50, 50, 255);
-            else SDL_SetRenderDrawColor(renderer, 150, 150, 150, 255);
+            SDL_Rect r = {
+                (int)(plat.bounds.x - camera.pos.x),
+                (int)(plat.bounds.y - camera.pos.y),
+                (int)plat.bounds.w,
+                (int)plat.bounds.h
+            };
+            if (plat.type == SPIKE) SDL_SetRenderDrawColor(renderer, 200, 50, 50, 255);
+            else SDL_SetRenderDrawColor(renderer, 80, 80, 90, 255);
             SDL_RenderFillRect(renderer, &r);
         }
 
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+        // 2. Dibujar Enemigos (con offset de cámara)
+        for (const auto& e : enemies) {
+            SDL_Rect r = {
+                (int)(e.pos.x - camera.pos.x),
+                (int)(e.pos.y - camera.pos.y),
+                (int)e.hitbox.w,
+                (int)e.hitbox.h
+            };
+            SDL_SetRenderDrawColor(renderer, 180, 0, 200, 255);
+            SDL_RenderFillRect(renderer, &r);
+        }
+
+        // 3. Dibujar Balas
+        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
         for (const auto& b : bullets) {
-            SDL_Rect bRect = { (int)(b.pos.x - camera.pos.x), (int)(b.pos.y - camera.pos.y), (int)b.hitbox.w, (int)b.hitbox.h };
+            SDL_Rect bRect = {
+                (int)(b.pos.x - camera.pos.x),
+                (int)(b.pos.y - camera.pos.y),
+                (int)b.hitbox.w,
+                (int)b.hitbox.h
+            };
             SDL_RenderFillRect(renderer, &bRect);
         }
 
-        SDL_SetRenderDrawColor(renderer, 200, 0, 255, 255);
-        for (const auto& e : enemies) {
-            SDL_Rect eRect = { (int)(e.pos.x - camera.pos.x), (int)(e.pos.y - camera.pos.y), (int)e.hitbox.w, (int)e.hitbox.h };
-            SDL_RenderFillRect(renderer, &eRect);
-        }
-
-        SDL_Rect pRect = { (int)(player.pos.x - camera.pos.x), (int)(player.pos.y - camera.pos.y), (int)player.hitbox.w, (int)player.hitbox.h };
-        if (player.IsDashing()) SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255);
-        else if (player.IsAttacking()) SDL_SetRenderDrawColor(renderer, 0, 100, 0, 255);
-        else SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+        // 4. Dibujar Jugador
+        SDL_Rect pRect = {
+            (int)(player.pos.x - camera.pos.x),
+            (int)(player.pos.y - camera.pos.y),
+            (int)player.hitbox.w,
+            (int)player.hitbox.h
+        };
+        SDL_SetRenderDrawColor(renderer, 0, 255, 100, 255);
         SDL_RenderFillRect(renderer, &pRect);
 
-        // UI
-        SDL_Rect areaJoy = {30, 370, 180, 180};
-        SDL_RenderCopy(renderer, texBase, NULL, &areaJoy);
-        SDL_Rect knobRect = { (int)(areaJoy.x + 65 + (input.GetJoystick().x * 50)), (int)(areaJoy.y + 65 + (input.GetJoystick().y * 50)), 50, 50 };
-        SDL_RenderCopy(renderer, texKnob, NULL, &knobRect);
-        SDL_Rect rZ = {680, 460, 80, 80}, rX = {590, 480, 80, 80}, rF = {680, 370, 80, 80};
-        SDL_RenderCopy(renderer, texBtnZ, NULL, &rZ);
-        SDL_RenderCopy(renderer, texBtnX, NULL, &rX);
-        SDL_RenderCopy(renderer, texBtnF, NULL, &rF);
+        // 5. Dibujar Interfaz (Sin offset de cámara para que sea estática)
+        ui.Render(renderer, input);
 
         SDL_RenderPresent(renderer);
     }
 
-    SDL_DestroyTexture(texBase); SDL_DestroyTexture(texKnob);
-    SDL_DestroyTexture(texBtnZ); SDL_DestroyTexture(texBtnX); SDL_DestroyTexture(texBtnF);
-    SDL_DestroyRenderer(renderer); SDL_DestroyWindow(window);
+    // Limpieza
+    ui.Clean();
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
     SDL_Quit();
+
     return 0;
 }
 
