@@ -16,13 +16,9 @@ Player::Player() {
 }
 
 void Player::HandleInput(InputManager& input) {
-    // Si estamos en invulnerabilidad reciente por golpe, el control es limitado (opcional)
-    // Pero si estamos dasheando, el control se bloquea totalmente
     if (isDashing) return;
 
     vel.x = 0;
-    
-    // Joystick o Teclado (Ahora soporta eje Y aunque no se use para caminar)
     if (input.IsKeyDown(SDL_SCANCODE_LEFT)) { vel.x = -speed; faceDir = -1; }
     else if (input.IsKeyDown(SDL_SCANCODE_RIGHT)) { vel.x = speed; faceDir = 1; }
 
@@ -34,6 +30,8 @@ void Player::HandleInput(InputManager& input) {
     }
 
     if (input.IsKeyPressed(SDL_SCANCODE_F) && dashCooldown <= 0) ApplyDash((float)faceDir);
+    
+    // Captura de botón X (Ataque)
     if (input.IsKeyPressed(SDL_SCANCODE_X) && attackCooldown <= 0) ApplyAttack();
 }
 
@@ -46,13 +44,16 @@ void Player::ApplyDash(float dir) {
 }
 
 void Player::ApplyAttack() {
-    attackTimer = 0.2f;
-    attackCooldown = 0.4f;
+    attackTimer = 0.25f;   // Duración de la ventana de daño
+    attackCooldown = 0.4f; // Tiempo antes de poder atacar de nuevo
 }
 
 Rect Player::GetAttackRect() const {
-    float range = 40.0f;
-    return { (faceDir == 1) ? pos.x + hitbox.w : pos.x - range, pos.y + 10, range, 30 };
+    float range = 50.0f; // Aumentado de 40 a 50 para mejor feeling
+    float height = 40.0f;
+    // La caja aparece frente al jugador según faceDir
+    float attackX = (faceDir == 1) ? pos.x + hitbox.w : pos.x - range;
+    return { attackX, pos.y + 4, range, height };
 }
 
 void Player::Update(float dt) {
@@ -65,25 +66,22 @@ void Player::Update(float dt) {
         dashTimer -= dt;
         if (dashTimer <= 0) isDashing = false;
     } else {
-        // Gravedad normal solo si no dasheamos
         vel.y += 1800.0f * dt;
     }
 
     pos.x += vel.x * dt;
     pos.y += vel.y * dt;
-    hitbox.x = pos.x; hitbox.y = pos.y;
+    hitbox.x = pos.x; 
+    hitbox.y = pos.y;
 }
 
 void Player::TakeDamage(float amount, float sourceX) {
-    // El Dash da "frames de alma" (invulnerabilidad) según el diseño
     if (invulTimer <= 0 && !isDashing) {
         health -= amount;
-        invulTimer = 0.8f; // Tiempo de parpadeo
-
-        // Lógica de Knockback: Empuje contrario al origen
+        invulTimer = 0.8f;
         float knockDir = (pos.x + hitbox.w/2 > sourceX) ? 1.0f : -1.0f;
         vel.x = knockDir * 400.0f;
-        vel.y = -300.0f; // Pequeño salto por el impacto
+        vel.y = -300.0f;
         isGrounded = false;
     }
 }

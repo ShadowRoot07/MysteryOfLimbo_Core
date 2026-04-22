@@ -18,24 +18,21 @@ void ProcessWorld(Player& p, std::vector<Platform>& level, std::vector<Enemy>& e
 
     // 2. Procesamiento de enemigos
     for (auto it = enemies.begin(); it != enemies.end(); ) {
-        if (it->health <= 0) { 
-            it = enemies.erase(it); 
-            continue; 
+        if (it->health <= 0) {
+            it = enemies.erase(it);
+            continue;
         }
 
-        // Gravedad para enemigos terrestres
+        // Gravedad y Movimiento (Se mantiene lo construido)
         if (it->type == WALKER) {
-            it->vel.y += 1500.0f * dt; // Gravedad del enemigo
+            it->vel.y += 1500.0f * dt;
             it->pos.y += it->vel.y * dt;
             it->pos.x += it->dir * 100.0f * dt;
-            
-            it->hitbox.x = it->pos.x; 
+            it->hitbox.x = it->pos.x;
             it->hitbox.y = it->pos.y;
 
-            // Colisión básica de Walker con plataformas (para que no atraviesen el suelo)
             for (const auto& plat : level) {
                 if (PhysicsEngine::AABB(it->hitbox, plat.bounds)) {
-                    // Resolución simple: si toca suelo, frena caída
                     if (it->pos.y + it->hitbox.h > plat.bounds.y && it->pos.y < plat.bounds.y) {
                         it->pos.y = plat.bounds.y - it->hitbox.h;
                         it->vel.y = 0;
@@ -43,23 +40,18 @@ void ProcessWorld(Player& p, std::vector<Platform>& level, std::vector<Enemy>& e
                 }
             }
 
-            // Sensor de vacío
             bool groundAhead = false;
             float sensorX = (it->dir == 1) ? it->pos.x + it->hitbox.w : it->pos.x - 5;
             Rect sensor = { sensorX, it->pos.y + it->hitbox.h + 5, 5, 5 };
-            
             for (const auto& plat : level) {
-                if (PhysicsEngine::AABB(sensor, plat.bounds)) { 
-                    groundAhead = true; 
-                    break; 
-                }
+                if (PhysicsEngine::AABB(sensor, plat.bounds)) { groundAhead = true; break; }
             }
             if (!groundAhead) it->dir *= -1;
         }
         else if (it->type == FLYER) {
             it->pos.x += it->dir * 120.0f * dt;
             it->pos.y += sin(SDL_GetTicks() * 0.005f) * 2.0f;
-            it->hitbox.x = it->pos.x; 
+            it->hitbox.x = it->pos.x;
             it->hitbox.y = it->pos.y;
         }
         else if (it->type == TURRET) {
@@ -73,15 +65,33 @@ void ProcessWorld(Player& p, std::vector<Platform>& level, std::vector<Enemy>& e
             }
         }
 
-        // Colisión Enemigo vs Jugador (Knockback)
+        // --- SOLUCIÓN AL BUG DEL BOTÓN X (Combate) ---
+        if (p.IsAttacking()) {
+            Rect attackRect = p.GetAttackRect();
+            if (PhysicsEngine::AABB(attackRect, it->hitbox)) {
+                it->health -= 35.0f; // Daño base de los cortes de fuego
+                
+                // Knockback al enemigo (para que el combate sea táctico)
+                if (it->type == WALKER || it->type == FLYER) {
+                    float pushDir = (p.pos.x < it->pos.x) ? 1.0f : -1.0f;
+                    it->pos.x += pushDir * 20.0f; // Empuje instantáneo
+                    if (it->type == WALKER) it->dir = (int)-pushDir; // El enemigo cambia de dirección por el impacto
+                }
+                
+                // Evitamos daño múltiple en el mismo frame de ataque (opcional)
+                // it->health = 0; // Descomenta para matar de un golpe si quieres testear
+            }
+        }
+
+        // Colisión Enemigo vs Jugador
         if (PhysicsEngine::AABB(p.hitbox, it->hitbox)) {
             p.TakeDamage(10, it->pos.x);
         }
-        
+
         ++it;
     }
 
-    // 3. Proyectiles
+    // 3. Proyectiles (Se mantiene igual)
     for (auto it = bullets.begin(); it != bullets.end(); ) {
         it->pos.x += it->vel.x * dt;
         it->pos.y += it->vel.y * dt;
