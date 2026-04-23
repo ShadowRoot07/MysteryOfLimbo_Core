@@ -49,4 +49,4 @@ build/ui/UIManager.o: src/ui/UIManager.cpp include/ui/UIManager.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_version.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_locale.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_misc.h \
-  include/input/InputManager.h include/Common.h
+  include/input/InputManager.h include/player/Player.h include/Common.h
