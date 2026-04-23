@@ -16,10 +16,8 @@ Player::Player() {
     maxJumps = 1;
     isLiquid = false;
     liquidTimer = 0.0f;
-
-    // Oscuridad inicial
-    shadowMark = {0, 0};
     hasMark = false;
+    pendingPlatform = false;
 
     dashCooldown = dashTimer = 0.0f;
     isDashing = false;
@@ -45,6 +43,7 @@ void Player::HandleInput(InputManager& input) {
     if (input.IsKeyDown(SDL_SCANCODE_LEFT)) { vel.x = -speed; faceDir = -1; }
     else if (input.IsKeyDown(SDL_SCANCODE_RIGHT)) { vel.x = speed; faceDir = 1; }
 
+    // Salto
     if (input.IsKeyPressed(SDL_SCANCODE_Z)) {
         if (isGrounded) {
             vel.y = jumpForce;
@@ -56,34 +55,40 @@ void Player::HandleInput(InputManager& input) {
         }
     }
 
-    if (input.IsKeyPressed(SDL_SCANCODE_F) && dashCooldown <= 0) ApplyDash((float)faceDir);
-    if (input.IsKeyPressed(SDL_SCANCODE_X) && attackCooldown <= 0) ApplyAttack();
+    // --- DETECCIÓN DE COMBOS ---
+    bool isDown = (input.GetJoystick().y > 0.5f || input.IsKeyDown(SDL_SCANCODE_DOWN));
+    bool isUp = (input.GetJoystick().y < -0.5f || input.IsKeyDown(SDL_SCANCODE_UP));
 
-    // Botón C para habilidad del Slot 1, Botón V para Slot 2 (Sugerencia)
-    if (input.IsKeyPressed(SDL_SCANCODE_C)) ExecuteActiveSkill();
-}
-
-void Player::ExecuteActiveSkill() {
-    // 1. Lógica de AGUA
-    if (HasElement(WATER) && !isLiquid) {
-        isLiquid = true;
-        liquidTimer = 1.0f;
-    }
-    
-    // 2. Lógica de OSCURIDAD (Marcado y TP)
-    if (HasElement(DARKNESS)) {
-        if (!hasMark) {
-            shadowMark = pos; // Colocamos la marca
-            hasMark = true;
-        } else {
-            pos = shadowMark; // Teletransporte
-            hasMark = false;
-            vel = {0, 0}; // Cancelar inercia al aparecer
+    // Botón X (Ataque / Tierra / Oscuridad)
+    if (input.IsKeyPressed(SDL_SCANCODE_X)) {
+        if (isDown && HasElement(EARTH)) {
+            pendingPlatform = true; // Señal para crear plataforma
+        } 
+        else if (isUp && HasElement(DARKNESS)) {
+            if (!hasMark) {
+                shadowMark = pos;
+                hasMark = true;
+            } else {
+                pos = shadowMark;
+                hasMark = false;
+                vel = {0, 0};
+            }
+        } 
+        else if (attackCooldown <= 0) {
+            ApplyAttack();
         }
     }
 
-    // 3. Lógica de TIERRA (Aquí llamaremos al sistema de plataformas)
-    // Nota: Esto requiere pasar la referencia al vector de plataformas en el WorldProcessor
+    // Botón F (Dash / Agua)
+    if (input.IsKeyPressed(SDL_SCANCODE_F) && dashCooldown <= 0) {
+        if (isDown && HasElement(WATER) && !isLiquid) {
+            isLiquid = true;
+            liquidTimer = 1.0f;
+            dashCooldown = 1.5f; // Cooldown compartido con el dash para balance
+        } else {
+            ApplyDash((float)faceDir);
+        }
+    }
 }
 
 void Player::Update(float dt) {
@@ -113,7 +118,7 @@ void Player::Update(float dt) {
 }
 
 void Player::TakeDamage(float amount, float sourceX) {
-    if (isLiquid) return; 
+    if (isLiquid) return;
     if (invulTimer <= 0 && !isDashing) {
         health -= amount;
         invulTimer = 1.0f;

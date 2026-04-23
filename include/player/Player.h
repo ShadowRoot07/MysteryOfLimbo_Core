@@ -20,8 +20,15 @@ public:
     float GetInvulTimer() const { return invulTimer; }
     Rect GetAttackRect() const;
     
-    // Para que Tierra pueda posicionar la plataforma
+    // Getters para lógica externa y renderizado de habilidades
     Vector2 GetPos() const { return pos; }
+    int GetFaceDir() const { return faceDir; }
+    bool GetHasMark() const { return hasMark; }
+    Vector2 GetShadowMark() const { return shadowMark; }
+    bool IsLiquid() const { return isLiquid; }
+
+    // Señal para el creador de plataformas
+    bool pendingPlatform;
 
 private:
     float health;
@@ -31,15 +38,12 @@ private:
     ElementType elementSlot1;
     ElementType elementSlot2;
 
-    // Lógica de Aire
     int jumpCount;
     int maxJumps;
 
-    // Lógica de Agua
     bool isLiquid;
     float liquidTimer;
 
-    // Lógica de Oscuridad (NUEVO)
     Vector2 shadowMark;
     bool hasMark;
 
@@ -54,7 +58,6 @@ private:
 
     void ApplyDash(float direction);
     void ApplyAttack();
-    void ExecuteActiveSkill();
 };
 
 #endif

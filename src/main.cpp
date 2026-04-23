@@ -12,6 +12,9 @@
 #include "player/Player.h"
 #include "input/InputManager.h"
 
+// Inclusión de la lógica de habilidades (Asegúrate que el archivo exista en src/elements/)
+#include "elements/EarthSkill.cpp"
+
 // Declaraciones de funciones externas definidas en otros .cpp
 extern void ProcessWorld(Player& p, std::vector<Platform>& level, std::vector<Enemy>& enemies, std::vector<Projectile>& bullets, float dt);
 extern std::vector<Platform> LoadLevel(const std::string& path, std::vector<Enemy>& enemies);
@@ -24,7 +27,6 @@ int main(int argc, char* argv[]) {
     }
 
     // Configuración de ventana y renderizado
-    // Usamos 800x600 como resolución lógica para mantener consistencia en el ZTE
     SDL_Window* window = SDL_CreateWindow("Mystery of Limbo", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_SHOWN);
     if (!window) {
         std::cerr << "Error al crear ventana: " << SDL_GetError() << std::endl;
@@ -43,6 +45,10 @@ int main(int argc, char* argv[]) {
     Player player;
     Camera camera(800, 600);
 
+    // --- TEST DE ELEMENTOS ---
+    // Puedes cambiar estos para probar las combinaciones en tu ZTE
+    player.SetElements(EARTH, DARKNESS); 
+
     std::vector<Enemy> enemies;
     std::vector<Projectile> bullets;
 
@@ -51,7 +57,6 @@ int main(int argc, char* argv[]) {
 
     if (!ui.LoadAssets(renderer)) {
         std::cerr << "Error critico: No se pudieron cargar los assets de la UI en assets/sprites/ui/" << std::endl;
-        // No salimos del programa, pero la UI no se verá
     }
 
     bool running = true;
@@ -65,27 +70,34 @@ int main(int argc, char* argv[]) {
         lastTime = currentTime;
         if (dt > 0.05f) dt = 0.05f;
 
-        // 1. PRIMERO actualizamos el estado anterior (Copia de seguridad)
+        // 1. PRIMERO actualizamos el estado anterior
         input.Update();
 
-        // 2. SEGUNDO procesamos nuevos eventos del frame actual
+        // 2. SEGUNDO procesamos nuevos eventos
         while (SDL_PollEvent(&ev)) {
             if (ev.type == SDL_QUIT) running = false;
             input.HandleRawEvent(ev);
         }
 
-        // 3. TERCERO procesamos la lógica con los estados ya diferenciados
+        // 3. TERCERO procesamos la lógica
         player.HandleInput(input);
+
+        // --- LÓGICA DE SEÑALES DE HABILIDADES (NUEVO) ---
+        if (player.pendingPlatform) {
+            // Si el jugador activó la combo de Tierra, creamos la plataforma física aquí
+            level.push_back(EarthSkill::CreateTempPlatform(player.GetPos(), player.GetFaceDir()));
+            player.pendingPlatform = false; // Reset de la señal
+        }
+
         player.Update(dt);
         ProcessWorld(player, level, enemies, bullets, dt);
-        camera.Follow(player.pos, dt);
+        camera.Follow(player.GetPos(), dt);
 
         // --- RENDERIZADO ---
-        // Color de fondo oscuro (estilo Limbo)
         SDL_SetRenderDrawColor(renderer, 15, 15, 25, 255);
         SDL_RenderClear(renderer);
 
-        // 1. Dibujar Plataformas (con offset de cámara)
+        // 1. Dibujar Plataformas
         for (const auto& plat : level) {
             SDL_Rect r = {
                 (int)(plat.bounds.x - camera.pos.x),
@@ -93,12 +105,13 @@ int main(int argc, char* argv[]) {
                 (int)plat.bounds.w,
                 (int)plat.bounds.h
             };
-            if (plat.type == SPIKE) SDL_SetRenderDrawColor(renderer, 200, 50, 50, 255);
+            if (plat.type == TEMPORARY) SDL_SetRenderDrawColor(renderer, 139, 69, 19, 255); // Café para Tierra
+            else if (plat.type == SPIKE) SDL_SetRenderDrawColor(renderer, 200, 50, 50, 255);
             else SDL_SetRenderDrawColor(renderer, 80, 80, 90, 255);
             SDL_RenderFillRect(renderer, &r);
         }
 
-        // 2. Dibujar Enemigos (con offset de cámara)
+        // 2. Dibujar Enemigos
         for (const auto& e : enemies) {
             SDL_Rect r = {
                 (int)(e.pos.x - camera.pos.x),
@@ -122,9 +135,19 @@ int main(int argc, char* argv[]) {
             SDL_RenderFillRect(renderer, &bRect);
         }
 
-        // 4. Dibujar Jugador (Implementando Feedback Visual de Daño y Ataque)
+        // 4. Marca de Oscuridad (Feedback visual de TP)
+        if (player.GetHasMark()) {
+            SDL_SetRenderDrawColor(renderer, 150, 0, 255, 150);
+            SDL_Rect mRect = {
+                (int)(player.GetShadowMark().x - camera.pos.x),
+                (int)(player.GetShadowMark().y - camera.pos.y),
+                32, 48
+            };
+            SDL_RenderDrawRect(renderer, &mRect); // Dibujamos solo el borde
+        }
+
+        // 5. Dibujar Jugador
         bool shouldDraw = true;
-        // Si el jugador es invulnerable, hacemos que parpadee cada 100ms
         if (player.GetInvulTimer() > 0) {
             if ((SDL_GetTicks() / 100) % 2 == 0) {
                 shouldDraw = false;
@@ -133,24 +156,26 @@ int main(int argc, char* argv[]) {
 
         if (shouldDraw) {
             SDL_Rect pRect = {
-                (int)(player.pos.x - camera.pos.x),
-                (int)(player.pos.y - camera.pos.y),
+                (int)(player.GetPos().x - camera.pos.x),
+                (int)(player.GetPos().y - camera.pos.y),
                 (int)player.hitbox.w,
                 (int)player.hitbox.h
             };
 
-            // Cambiamos a color amarillo/fuego si está atacando, verde si es normal
-            if (player.IsAttacking()) {
-                SDL_SetRenderDrawColor(renderer, 255, 200, 0, 255); 
+            // Colores según estado elemental
+            if (player.IsLiquid()) {
+                SDL_SetRenderDrawColor(renderer, 100, 100, 255, 200); // Azul translúcido (Agua)
+            } else if (player.IsAttacking()) {
+                SDL_SetRenderDrawColor(renderer, 255, 200, 0, 255);
             } else {
                 SDL_SetRenderDrawColor(renderer, 0, 255, 100, 255);
             }
-            
+
             SDL_RenderFillRect(renderer, &pRect);
         }
 
-        // 5. Dibujar Interfaz (Sin offset de cámara para que sea estática)
-        ui.Render(renderer, input);
+        // 6. Dibujar Interfaz (Pasamos el player para mostrar estados en la UI si lo necesitas)
+        ui.Render(renderer, input, player);
 
         SDL_RenderPresent(renderer);
     }
