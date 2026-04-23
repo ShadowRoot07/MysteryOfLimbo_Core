@@ -10,7 +10,7 @@ public:
     ~UIManager();
 
     bool LoadAssets(SDL_Renderer* renderer);
-    void Render(SDL_Renderer* renderer, const InputManager& input);
+    void Render(SDL_Renderer* renderer, const InputManager& input, const Player& player);
     void Clean();
 
 private:

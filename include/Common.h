@@ -6,6 +6,9 @@
 struct Vector2 { float x, y; };
 struct Rect { float x, y, w, h; };
 
+// Elementos disponibles en el juego
+enum ElementType { FIRE, AIR, LIGHT, EARTH, WATER, DARKNESS, NONE };
+
 struct Entity {
     Vector2 pos;
     Vector2 vel;
