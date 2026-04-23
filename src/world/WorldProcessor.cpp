@@ -16,21 +16,38 @@ void ProcessWorld(Player& p, std::vector<Platform>& level, std::vector<Enemy>& e
         }
     }
 
-    // 2. Procesamiento de enemigos
+    // 2. Procesamiento de enemigos con IA mejorada
     for (auto it = enemies.begin(); it != enemies.end(); ) {
         if (it->health <= 0) {
             it = enemies.erase(it);
             continue;
         }
 
-        // Gravedad y Movimiento (Se mantiene lo construido)
+        // Cálculo de distancia al jugador para la IA
+        float distToPlayer = std::sqrt(std::pow((p.pos.x - it->pos.x), 2) + std::pow((p.pos.y - it->pos.y), 2));
+        bool canSeePlayer = (distToPlayer < it->detectionRange);
+
+        // --- LÓGICA POR TIPO ---
+
         if (it->type == WALKER) {
             it->vel.y += 1500.0f * dt;
             it->pos.y += it->vel.y * dt;
-            it->pos.x += it->dir * 100.0f * dt;
+
+            // FSM de WALKER: PATROL vs CHASE
+            if (canSeePlayer) {
+                it->state = CHASE;
+                it->dir = (p.pos.x > it->pos.x) ? 1 : -1;
+                it->speedMult = 1.8f; // Corre cuando te ve
+            } else {
+                it->state = PATROL;
+                it->speedMult = 1.0f;
+            }
+
+            it->pos.x += it->dir * (100.0f * it->speedMult) * dt;
             it->hitbox.x = it->pos.x;
             it->hitbox.y = it->pos.y;
 
+            // Colisión con suelo para no atravesarlo
             for (const auto& plat : level) {
                 if (PhysicsEngine::AABB(it->hitbox, plat.bounds)) {
                     if (it->pos.y + it->hitbox.h > plat.bounds.y && it->pos.y < plat.bounds.y) {
@@ -40,50 +57,62 @@ void ProcessWorld(Player& p, std::vector<Platform>& level, std::vector<Enemy>& e
                 }
             }
 
-            bool groundAhead = false;
-            float sensorX = (it->dir == 1) ? it->pos.x + it->hitbox.w : it->pos.x - 5;
-            Rect sensor = { sensorX, it->pos.y + it->hitbox.h + 5, 5, 5 };
-            for (const auto& plat : level) {
-                if (PhysicsEngine::AABB(sensor, plat.bounds)) { groundAhead = true; break; }
+            // Sensor de vacío (solo en modo patrulla para no suicidarse)
+            if (it->state == PATROL) {
+                bool groundAhead = false;
+                float sensorX = (it->dir == 1) ? it->pos.x + it->hitbox.w : it->pos.x - 5;
+                Rect sensor = { sensorX, it->pos.y + it->hitbox.h + 5, 5, 5 };
+                for (const auto& plat : level) {
+                    if (PhysicsEngine::AABB(sensor, plat.bounds)) { groundAhead = true; break; }
+                }
+                if (!groundAhead) it->dir *= -1;
             }
-            if (!groundAhead) it->dir *= -1;
         }
+
         else if (it->type == FLYER) {
-            it->pos.x += it->dir * 120.0f * dt;
-            it->pos.y += sin(SDL_GetTicks() * 0.005f) * 2.0f;
+            // FSM de FLYER: Acecho senoidal vs Embestida
+            if (canSeePlayer) {
+                it->state = CHASE;
+                // Se mueve directamente hacia el jugador en ambos ejes
+                float angle = std::atan2(p.pos.y - it->pos.y, p.pos.x - it->pos.x);
+                it->pos.x += std::cos(angle) * 150.0f * dt;
+                it->pos.y += std::sin(angle) * 150.0f * dt;
+            } else {
+                it->state = PATROL;
+                it->pos.x += it->dir * 120.0f * dt;
+                it->pos.y += std::sin(SDL_GetTicks() * 0.005f) * 2.0f;
+            }
             it->hitbox.x = it->pos.x;
             it->hitbox.y = it->pos.y;
         }
+
         else if (it->type == TURRET) {
-            it->timer += dt;
-            if (it->timer > 2.0f) {
-                float dx = (p.pos.x + 16) - it->pos.x;
-                float dy = (p.pos.y + 24) - it->pos.y;
-                float angle = atan2(dy, dx);
-                bullets.push_back({{it->pos.x + 10, it->pos.y + 10}, {cos(angle)*300, sin(angle)*300}, {0,0,12,12}, true});
-                it->timer = 0;
+            // FSM de TURRET: Solo dispara si estás en rango
+            if (canSeePlayer) {
+                it->timer += dt;
+                if (it->timer > 1.5f) { // Dispara más rápido si te ve
+                    float dx = (p.pos.x + 16) - it->pos.x;
+                    float dy = (p.pos.y + 24) - it->pos.y;
+                    float angle = std::atan2(dy, dx);
+                    bullets.push_back({{it->pos.x + 10, it->pos.y + 10}, {std::cos(angle)*300, std::sin(angle)*300}, {0,0,12,12}, true});
+                    it->timer = 0;
+                }
             }
         }
 
-        // --- SOLUCIÓN AL BUG DEL BOTÓN X (Combate) ---
+        // --- SISTEMA DE COMBATE (Jugador ataca) ---
         if (p.IsAttacking()) {
             Rect attackRect = p.GetAttackRect();
             if (PhysicsEngine::AABB(attackRect, it->hitbox)) {
-                it->health -= 35.0f; // Daño base de los cortes de fuego
-                
-                // Knockback al enemigo (para que el combate sea táctico)
-                if (it->type == WALKER || it->type == FLYER) {
-                    float pushDir = (p.pos.x < it->pos.x) ? 1.0f : -1.0f;
-                    it->pos.x += pushDir * 20.0f; // Empuje instantáneo
-                    if (it->type == WALKER) it->dir = (int)-pushDir; // El enemigo cambia de dirección por el impacto
-                }
-                
-                // Evitamos daño múltiple en el mismo frame de ataque (opcional)
-                // it->health = 0; // Descomenta para matar de un golpe si quieres testear
+                it->health -= 35.0f;
+                // Knockback técnico
+                float pushDir = (p.pos.x < it->pos.x) ? 1.0f : -1.0f;
+                it->pos.x += pushDir * 25.0f; 
+                if (it->type == WALKER) it->dir = (int)-pushDir;
             }
         }
 
-        // Colisión Enemigo vs Jugador
+        // Daño de contacto al jugador
         if (PhysicsEngine::AABB(p.hitbox, it->hitbox)) {
             p.TakeDamage(10, it->pos.x);
         }
@@ -91,7 +120,7 @@ void ProcessWorld(Player& p, std::vector<Platform>& level, std::vector<Enemy>& e
         ++it;
     }
 
-    // 3. Proyectiles (Se mantiene igual)
+    // 3. Proyectiles (Se mantiene la lógica de colisión)
     for (auto it = bullets.begin(); it != bullets.end(); ) {
         it->pos.x += it->vel.x * dt;
         it->pos.y += it->vel.y * dt;
@@ -107,7 +136,7 @@ void ProcessWorld(Player& p, std::vector<Platform>& level, std::vector<Enemy>& e
             if (PhysicsEngine::AABB(it->hitbox, plat.bounds)) { destroyed = true; break; }
         }
 
-        if (destroyed || !it->active || std::abs(it->pos.x - p.pos.x) > 1000) it = bullets.erase(it);
+        if (destroyed || !it->active || std::abs(it->pos.x - p.pos.x) > 1200) it = bullets.erase(it);
         else ++it;
     }
 }

@@ -30,8 +30,6 @@ void Player::HandleInput(InputManager& input) {
     }
 
     if (input.IsKeyPressed(SDL_SCANCODE_F) && dashCooldown <= 0) ApplyDash((float)faceDir);
-    
-    // Captura de botón X (Ataque)
     if (input.IsKeyPressed(SDL_SCANCODE_X) && attackCooldown <= 0) ApplyAttack();
 }
 
@@ -44,14 +42,13 @@ void Player::ApplyDash(float dir) {
 }
 
 void Player::ApplyAttack() {
-    attackTimer = 0.25f;   // Duración de la ventana de daño
-    attackCooldown = 0.4f; // Tiempo antes de poder atacar de nuevo
+    attackTimer = 0.25f;
+    attackCooldown = 0.4f;
 }
 
 Rect Player::GetAttackRect() const {
-    float range = 50.0f; // Aumentado de 40 a 50 para mejor feeling
+    float range = 50.0f;
     float height = 40.0f;
-    // La caja aparece frente al jugador según faceDir
     float attackX = (faceDir == 1) ? pos.x + hitbox.w : pos.x - range;
     return { attackX, pos.y + 4, range, height };
 }
@@ -71,18 +68,19 @@ void Player::Update(float dt) {
 
     pos.x += vel.x * dt;
     pos.y += vel.y * dt;
-    hitbox.x = pos.x; 
+    hitbox.x = pos.x;
     hitbox.y = pos.y;
 }
 
 void Player::TakeDamage(float amount, float sourceX) {
     if (invulTimer <= 0 && !isDashing) {
         health -= amount;
-        invulTimer = 0.8f;
+        invulTimer = 1.0f; // Aumentado ligeramente para mejor feedback visual
         float knockDir = (pos.x + hitbox.w/2 > sourceX) ? 1.0f : -1.0f;
         vel.x = knockDir * 400.0f;
         vel.y = -300.0f;
         isGrounded = false;
+        // Hook para sonido: PlaySound("assets/audio/hit.wav");
     }
 }
 

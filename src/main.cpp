@@ -2,6 +2,7 @@
 #include <vector>
 #include <iostream>
 #include <string>
+#include <cmath> // Necesario para fmod y lógica de parpadeo
 
 // Organización de headers por módulos
 #include "ui/UIManager.h"
@@ -41,7 +42,7 @@ int main(int argc, char* argv[]) {
     UIManager ui;
     Player player;
     Camera camera(800, 600);
-    
+
     std::vector<Enemy> enemies;
     std::vector<Projectile> bullets;
 
@@ -121,15 +122,32 @@ int main(int argc, char* argv[]) {
             SDL_RenderFillRect(renderer, &bRect);
         }
 
-        // 4. Dibujar Jugador
-        SDL_Rect pRect = {
-            (int)(player.pos.x - camera.pos.x),
-            (int)(player.pos.y - camera.pos.y),
-            (int)player.hitbox.w,
-            (int)player.hitbox.h
-        };
-        SDL_SetRenderDrawColor(renderer, 0, 255, 100, 255);
-        SDL_RenderFillRect(renderer, &pRect);
+        // 4. Dibujar Jugador (Implementando Feedback Visual de Daño y Ataque)
+        bool shouldDraw = true;
+        // Si el jugador es invulnerable, hacemos que parpadee cada 100ms
+        if (player.GetInvulTimer() > 0) {
+            if ((SDL_GetTicks() / 100) % 2 == 0) {
+                shouldDraw = false;
+            }
+        }
+
+        if (shouldDraw) {
+            SDL_Rect pRect = {
+                (int)(player.pos.x - camera.pos.x),
+                (int)(player.pos.y - camera.pos.y),
+                (int)player.hitbox.w,
+                (int)player.hitbox.h
+            };
+
+            // Cambiamos a color amarillo/fuego si está atacando, verde si es normal
+            if (player.IsAttacking()) {
+                SDL_SetRenderDrawColor(renderer, 255, 200, 0, 255); 
+            } else {
+                SDL_SetRenderDrawColor(renderer, 0, 255, 100, 255);
+            }
+            
+            SDL_RenderFillRect(renderer, &pRect);
+        }
 
         // 5. Dibujar Interfaz (Sin offset de cámara para que sea estática)
         ui.Render(renderer, input);

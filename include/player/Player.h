@@ -9,12 +9,12 @@ public:
     Player();
     void HandleInput(InputManager& input);
     void Update(float dt);
-    // Ahora recibe la X del origen del daño para calcular la dirección del empuje
     void TakeDamage(float amount, float sourceX);
 
     float GetHealth() const { return health; }
     bool IsDashing() const { return isDashing; }
     bool IsAttacking() const { return attackTimer > 0; }
+    float GetInvulTimer() const { return invulTimer; } // Nuevo: para el feedback visual
     Rect GetAttackRect() const;
 
 private:
@@ -30,7 +30,7 @@ private:
 
     float attackTimer;
     float attackCooldown;
-    int faceDir; 
+    int faceDir;
 
     void ApplyDash(float direction);
     void ApplyAttack();
