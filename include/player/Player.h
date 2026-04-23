@@ -9,28 +9,52 @@ public:
     Player();
     void HandleInput(InputManager& input);
     void Update(float dt);
-    // Ahora recibe la X del origen del daño para calcular la dirección del empuje
     void TakeDamage(float amount, float sourceX);
+
+    void SetElements(ElementType slot1, ElementType slot2);
+    bool HasElement(ElementType type) const;
 
     float GetHealth() const { return health; }
     bool IsDashing() const { return isDashing; }
     bool IsAttacking() const { return attackTimer > 0; }
+    float GetInvulTimer() const { return invulTimer; }
     Rect GetAttackRect() const;
+    
+    // Getters para lógica externa y renderizado de habilidades
+    Vector2 GetPos() const { return pos; }
+    int GetFaceDir() const { return faceDir; }
+    bool GetHasMark() const { return hasMark; }
+    Vector2 GetShadowMark() const { return shadowMark; }
+    bool IsLiquid() const { return isLiquid; }
+
+    // Señal para el creador de plataformas
+    bool pendingPlatform;
 
 private:
     float health;
     float speed;
     float jumpForce;
 
+    ElementType elementSlot1;
+    ElementType elementSlot2;
+
+    int jumpCount;
+    int maxJumps;
+
+    bool isLiquid;
+    float liquidTimer;
+
+    Vector2 shadowMark;
+    bool hasMark;
+
     float dashCooldown;
     float dashTimer;
     bool isDashing;
 
     float invulTimer;
-
     float attackTimer;
     float attackCooldown;
-    int faceDir; 
+    int faceDir;
 
     void ApplyDash(float direction);
     void ApplyAttack();

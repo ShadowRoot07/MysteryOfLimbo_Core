@@ -51,4 +51,5 @@ build/main.o: src/main.cpp \
   /data/data/com.termux/files/usr/include/SDL2/SDL_misc.h \
   include/ui/UIManager.h include/input/InputManager.h \
   include/world/Camera.h include/Common.h include/world/Enemy.h \
-  include/world/Platform.h include/player/Player.h
+  include/world/Platform.h include/player/Player.h \
+  src/elements/EarthSkill.cpp

@@ -7,6 +7,7 @@ InputManager::InputManager() {
     std::memset(lastState, 0, SDL_NUM_SCANCODES);
     joystick = {0.0f, 0.0f, false, -1};
 
+    // Áreas táctiles originales
     joystickArea = {30, 370, 180, 180};
     btnZArea = {680, 460, 80, 80};
     btnXArea = {590, 480, 80, 80};
@@ -35,14 +36,12 @@ void InputManager::HandleRawEvent(SDL_Event& ev) {
             if (SDL_PointInRect(&p, &joystickArea)) {
                 joystick.isActive = true;
                 joystick.fingerID = fid;
-                // Centro del joystick
                 float centerX = joystickArea.x + 90.0f;
                 float centerY = joystickArea.y + 90.0f;
-                // Vector normalizado (rango -1.0 a 1.0)
+                
                 joystick.x = (mx - centerX) / 90.0f;
                 joystick.y = (my - centerY) / 90.0f;
-                
-                // Clamp para no exceder 1.0
+
                 if(joystick.x > 1.0f) joystick.x = 1.0f; if(joystick.x < -1.0f) joystick.x = -1.0f;
                 if(joystick.y > 1.0f) joystick.y = 1.0f; if(joystick.y < -1.0f) joystick.y = -1.0f;
             }
@@ -58,6 +57,13 @@ void InputManager::HandleRawEvent(SDL_Event& ev) {
             if (SDL_PointInRect(&p, &btnFArea)) vDash = false;
         }
     }
+}
+
+SDL_Point InputManager::GetJoystickScreenPos() const {
+    // Calcula la posición visual basándose en el centro del área + el desplazamiento normalizado
+    int centerX = joystickArea.x + 90;
+    int centerY = joystickArea.y + 90;
+    return { (int)(centerX + (joystick.x * 60)), (int)(centerY + (joystick.y * 60)) };
 }
 
 bool InputManager::IsKeyDown(SDL_Scancode k) {

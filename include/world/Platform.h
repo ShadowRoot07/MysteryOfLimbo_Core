@@ -3,12 +3,13 @@
 
 #include "Common.h"
 
-enum PlatformType { NORMAL, SPIKE, BOUNCY, TILE };
+enum PlatformType { NORMAL, SPIKE, TEMPORARY };
 
 struct Platform {
     Rect bounds;
     PlatformType type;
-    float damageValue;
+    float lifetime; // Tiempo restante si es TEMPORARY
 };
 
 #endif
+
