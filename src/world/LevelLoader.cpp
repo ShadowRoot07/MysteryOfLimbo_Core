@@ -49,9 +49,9 @@ std::vector<Platform> LoadLevel(const std::string& path, std::vector<Enemy>& ene
                 Rect r = {x, y, (float)tileSize, (float)tileSize};
 
                 if (c == '#') {
-                    level.push_back({r, NORMAL, 0});
+                    level.push_back({r, NORMAL, 0, "ground_stone"});
                 } else if (c == 'S') {
-                    level.push_back({r, SPIKE, 25.0f});
+                    level.push_back({r, SPIKE, 25.0f, "spike_metal"});
                 } else if (c == 'W' || c == 'V' || c == 'T') {
                     Enemy e;
                     // Centramos el enemigo en el tile de 50x50 para que no spawnee en la esquina

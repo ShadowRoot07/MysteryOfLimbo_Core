@@ -4,6 +4,7 @@
 #include <string>
 #include <cmath>
 
+#include "gfx/ShadowGFX.h"
 #include "ui/UIManager.h"
 #include "world/Camera.h"
 #include "world/Enemy.h"
@@ -29,20 +30,23 @@ int main(int argc, char* argv[]) {
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!renderer) return 1;
 
+    // --- INICIALIZACIÓN DE TECNOLOGÍA AVANZADA DE TEXTURAS ---
+    ShadowGFX gfx(renderer);
     InputManager input;
     UIManager ui;
     Player player;
     Camera camera(800, 600);
 
     // Equipamos elementos por defecto para testing
-    player.SetElements(EARTH, DARKNESS); 
+    player.SetElements(EARTH, DARKNESS);
 
     std::vector<Enemy> enemies;
     std::vector<Projectile> bullets;
     std::vector<Platform> level = LoadLevel("assets/maps/test_level.txt", enemies);
 
-    if (!ui.LoadAssets(renderer)) {
-        std::cerr << "Advertencia: Algunos assets de UI no se cargaron." << std::endl;
+    // Cargamos assets de UI a través de la librería
+    if (!ui.LoadAssets(gfx)) {
+        std::cerr << "Advertencia: Fallo al registrar texturas de UI en ShadowGFX." << std::endl;
     }
 
     bool running = true;
@@ -65,7 +69,9 @@ int main(int argc, char* argv[]) {
 
         // Lógica de señales de habilidades de Tierra
         if (player.pendingPlatform) {
-            level.push_back(EarthSkill::CreateTempPlatform(player.GetPos(), player.GetFaceDir()));
+            Platform tempP = EarthSkill::CreateTempPlatform(player.GetPos(), player.GetFaceDir());
+            tempP.textureID = "temp_platform_earth"; // Asignamos ID para la librería
+            level.push_back(tempP);
             player.pendingPlatform = false;
         }
 
@@ -73,11 +79,11 @@ int main(int argc, char* argv[]) {
         ProcessWorld(player, level, enemies, bullets, dt);
         camera.Follow(player.GetPos(), dt);
 
-        // --- RENDERIZADO ---
+        // --- RENDERIZADO CON SHADOW_GFX ---
         SDL_SetRenderDrawColor(renderer, 15, 15, 25, 255);
         SDL_RenderClear(renderer);
 
-        // 1. Dibujar Plataformas
+        // 1. Dibujar Plataformas (Ahora usan texturas o Fallback aleatorio)
         for (const auto& plat : level) {
             SDL_Rect r = {
                 (int)(plat.bounds.x - camera.pos.x),
@@ -85,10 +91,7 @@ int main(int argc, char* argv[]) {
                 (int)plat.bounds.w,
                 (int)plat.bounds.h
             };
-            if (plat.type == TEMPORARY) SDL_SetRenderDrawColor(renderer, 139, 69, 19, 255);
-            else if (plat.type == SPIKE) SDL_SetRenderDrawColor(renderer, 200, 50, 50, 255);
-            else SDL_SetRenderDrawColor(renderer, 80, 80, 90, 255);
-            SDL_RenderFillRect(renderer, &r);
+            gfx.DrawStatic(plat.textureID, r);
         }
 
         // 2. Dibujar Enemigos
@@ -99,29 +102,27 @@ int main(int argc, char* argv[]) {
                 (int)e.hitbox.w,
                 (int)e.hitbox.h
             };
-            SDL_SetRenderDrawColor(renderer, 180, 0, 200, 255);
-            SDL_RenderFillRect(renderer, &r);
+            // Usamos un ID genérico para enemigos mientras definimos sus sheets
+            gfx.DrawStatic("enemy_generic", r);
         }
 
         // 3. Dibujar Balas
-        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
         for (const auto& b : bullets) {
             SDL_Rect bRect = { (int)(b.pos.x - camera.pos.x), (int)(b.pos.y - camera.pos.y), (int)b.hitbox.w, (int)b.hitbox.h };
-            SDL_RenderFillRect(renderer, &bRect);
+            gfx.DrawStatic("projectile_yellow", bRect);
         }
 
         // 4. Marca de Oscuridad
         if (player.GetHasMark()) {
-            SDL_SetRenderDrawColor(renderer, 150, 0, 255, 180);
             SDL_Rect mRect = {
                 (int)(player.GetShadowMark().x - camera.pos.x),
                 (int)(player.GetShadowMark().y - camera.pos.y),
                 32, 48
             };
-            SDL_RenderDrawRect(renderer, &mRect);
+            gfx.DrawStatic("shadow_mark", mRect);
         }
 
-        // 5. Dibujar Jugador (con parpadeo y estados)
+        // 5. Dibujar Jugador (con sistema de animaciones 64x64)
         bool shouldDraw = true;
         if (player.GetInvulTimer() > 0) {
             if ((SDL_GetTicks() / 100) % 2 == 0) shouldDraw = false;
@@ -131,19 +132,16 @@ int main(int argc, char* argv[]) {
             SDL_Rect pRect = {
                 (int)(player.GetPos().x - camera.pos.x),
                 (int)(player.GetPos().y - camera.pos.y),
-                (int)player.hitbox.w,
-                (int)player.hitbox.h
+                64, 64 // Forzamos el tamaño del frame de la librería
             };
 
-            if (player.IsLiquid()) SDL_SetRenderDrawColor(renderer, 100, 100, 255, 200);
-            else if (player.IsAttacking()) SDL_SetRenderDrawColor(renderer, 255, 200, 0, 255);
-            else SDL_SetRenderDrawColor(renderer, 0, 255, 100, 255);
-
-            SDL_RenderFillRect(renderer, &pRect);
+            // Aquí llamamos a DrawAnimated. El frame se controlará en el Player más adelante.
+            // Por ahora usamos frame 0 y detectamos dirección para el flip.
+            gfx.DrawAnimated("player_main", pRect, 0, player.GetFaceDir() < 0);
         }
 
-        // 6. Dibujar Interfaz
-        ui.Render(renderer, input, player);
+        // 6. Dibujar Interfaz (Pasamos la referencia de gfx)
+        ui.Render(renderer, gfx, input, player);
 
         SDL_RenderPresent(renderer);
     }

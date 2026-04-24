@@ -2,13 +2,15 @@
 #define PLATFORM_H
 
 #include "Common.h"
+#include <string>
 
 enum PlatformType { NORMAL, SPIKE, TEMPORARY };
 
 struct Platform {
     Rect bounds;
     PlatformType type;
-    float lifetime; // Tiempo restante si es TEMPORARY
+    float lifetime;
+    std::string textureID; // Nueva propiedad
 };
 
 #endif
