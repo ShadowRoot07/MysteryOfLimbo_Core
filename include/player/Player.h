@@ -4,10 +4,14 @@
 #include "Common.h"
 #include "input/InputManager.h"
 
+// Forward declaration para no saturar el header
+class ShadowAudio;
+
 class Player : public Entity {
 public:
     Player();
-    void HandleInput(InputManager& input);
+    // Ahora acepta la referencia a la librería de audio
+    void HandleInput(InputManager& input, ShadowAudio& sfx);
     void Update(float dt);
     void TakeDamage(float amount, float sourceX);
 
@@ -19,15 +23,13 @@ public:
     bool IsAttacking() const { return attackTimer > 0; }
     float GetInvulTimer() const { return invulTimer; }
     Rect GetAttackRect() const;
-    
-    // Getters para lógica externa y renderizado de habilidades
+
     Vector2 GetPos() const { return pos; }
     int GetFaceDir() const { return faceDir; }
     bool GetHasMark() const { return hasMark; }
     Vector2 GetShadowMark() const { return shadowMark; }
     bool IsLiquid() const { return isLiquid; }
 
-    // Señal para el creador de plataformas
     bool pendingPlatform;
 
 private:
