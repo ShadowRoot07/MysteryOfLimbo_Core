@@ -1,4 +1,4 @@
-build/main.o: src/main.cpp \
+build/gfx/ShadowGFX.o: src/gfx/ShadowGFX.cpp include/gfx/ShadowGFX.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_main.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_stdinc.h \
@@ -48,8 +48,4 @@ build/main.o: src/main.cpp \
   /data/data/com.termux/files/usr/include/SDL2/SDL_timer.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_version.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_locale.h \
-  /data/data/com.termux/files/usr/include/SDL2/SDL_misc.h \
-  include/gfx/ShadowGFX.h include/ui/UIManager.h \
-  include/input/InputManager.h include/world/Camera.h include/Common.h \
-  include/world/Enemy.h include/world/Platform.h include/player/Player.h \
-  src/elements/EarthSkill.cpp
+  /data/data/com.termux/files/usr/include/SDL2/SDL_misc.h
