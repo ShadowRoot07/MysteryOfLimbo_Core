@@ -49,7 +49,9 @@ build/main.o: src/main.cpp \
   /data/data/com.termux/files/usr/include/SDL2/SDL_version.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_locale.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_misc.h \
-  include/gfx/ShadowGFX.h include/ui/UIManager.h \
-  include/input/InputManager.h include/world/Camera.h include/Common.h \
-  include/world/Enemy.h include/world/Platform.h include/player/Player.h \
+  include/gfx/ShadowGFX.h include/gfx/ShadowAudio.h \
+  /data/data/com.termux/files/usr/include/SDL2/SDL_mixer.h \
+  include/ui/UIManager.h include/input/InputManager.h \
+  include/world/Camera.h include/Common.h include/world/Enemy.h \
+  include/world/Platform.h include/player/Player.h \
   src/elements/EarthSkill.cpp

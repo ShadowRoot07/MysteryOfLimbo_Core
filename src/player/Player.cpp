@@ -1,4 +1,5 @@
 #include "player/Player.h"
+#include "gfx/ShadowAudio.h" // Necesario para llamar a sfx.Play()
 #include <cmath>
 
 Player::Player() {
@@ -36,57 +37,62 @@ bool Player::HasElement(ElementType type) const {
     return (elementSlot1 == type || elementSlot2 == type);
 }
 
-void Player::HandleInput(InputManager& input) {
+void Player::HandleInput(InputManager& input, ShadowAudio& sfx) {
     if (isDashing) return;
 
     vel.x = 0;
     if (input.IsKeyDown(SDL_SCANCODE_LEFT)) { vel.x = -speed; faceDir = -1; }
     else if (input.IsKeyDown(SDL_SCANCODE_RIGHT)) { vel.x = speed; faceDir = 1; }
 
-    // Salto
+    // Salto con sonidos diferenciados
     if (input.IsKeyPressed(SDL_SCANCODE_Z)) {
         if (isGrounded) {
             vel.y = jumpForce;
             isGrounded = false;
             jumpCount = 1;
+            sfx.Play("jump");
         } else if (jumpCount < maxJumps) {
             vel.y = jumpForce * 0.85f;
             jumpCount++;
+            sfx.Play("double_jump"); 
         }
     }
 
-    // --- DETECCIÓN DE COMBOS ---
     bool isDown = (input.GetJoystick().y > 0.5f || input.IsKeyDown(SDL_SCANCODE_DOWN));
     bool isUp = (input.GetJoystick().y < -0.5f || input.IsKeyDown(SDL_SCANCODE_UP));
 
-    // Botón X (Ataque / Tierra / Oscuridad)
     if (input.IsKeyPressed(SDL_SCANCODE_X)) {
         if (isDown && HasElement(EARTH)) {
-            pendingPlatform = true; // Señal para crear plataforma
-        } 
+            pendingPlatform = true;
+            sfx.Play("earth_skill");
+        }
         else if (isUp && HasElement(DARKNESS)) {
             if (!hasMark) {
                 shadowMark = pos;
                 hasMark = true;
+                sfx.Play("mark_set");
             } else {
                 pos = shadowMark;
                 hasMark = false;
                 vel = {0, 0};
+                sfx.Play("teleport");
             }
-        } 
+        }
         else if (attackCooldown <= 0) {
             ApplyAttack();
+            sfx.Play("attack");
         }
     }
 
-    // Botón F (Dash / Agua)
     if (input.IsKeyPressed(SDL_SCANCODE_F) && dashCooldown <= 0) {
         if (isDown && HasElement(WATER) && !isLiquid) {
             isLiquid = true;
             liquidTimer = 1.0f;
-            dashCooldown = 1.5f; // Cooldown compartido con el dash para balance
+            dashCooldown = 1.5f;
+            sfx.Play("liquid_form");
         } else {
             ApplyDash((float)faceDir);
+            sfx.Play("dash");
         }
     }
 }

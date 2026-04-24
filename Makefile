@@ -1,17 +1,18 @@
 # Mystery of Limbo Makefile
 CXX = g++
-# Añadido -Iinclude/gfx para la nueva librería
+# Añadido -Iinclude/gfx para las librerías Shadow
 CXXFLAGS = -Iinclude -Iinclude/gfx -Isrc `sdl2-config --cflags` -std=c++17 -MMD
-LDFLAGS = `sdl2-config --libs`
+# Añadido -lSDL2_mixer para el soporte de audio
+LDFLAGS = `sdl2-config --libs` -lSDL2_mixer
 
 # Directorios
 SRC_DIR = src
 BUILD_DIR = build
 
-# Encontrar todos los .cpp excepto los de elements
+# Encontrar todos los .cpp excepto EarthSkill.cpp
 SOURCES = $(shell find $(SRC_DIR) -name '*.cpp' ! -name 'EarthSkill.cpp')
 OBJECTS = $(SOURCES:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
-DEPS = $(OBJECTS:.o=.d)                                    
+DEPS = $(OBJECTS:.o=.d)
 TARGET = limbo_core
 
 all: $(TARGET)
