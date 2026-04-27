@@ -1,57 +1,52 @@
-name: Android Build (Mystery of Limbo)
+name: Android Build & Sync
 
 on:
   push:
-    branches: [ main, ShadowRoot-CreateSounds ]
-  pull_request:
-    branches: [ main ]
+    branches: [ ShadowRoot-CreateSounds ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Permiso para que el bot haga commit del APK
     
     steps:
-      - name: Checkout del código
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
-      - name: Configurar Java
+      - name: Configurar Entorno
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Instalar Android SDK & NDK
-        uses: android-actions/setup-android@v3
-
-      - name: Instalar SDL2 para Android
+      - name: Instalar NDK y Dependencias
         run: |
           sudo apt-get update
           sudo apt-get install -y libsdl2-mixer-dev
+          # Aquí es donde el script de SDL2 suele generar el proyecto.
+          # Para este paso rápido, crearemos un placeholder que valide el binario.
 
-      # Android necesita los assets en una carpeta específica para empaquetarlos
-      - name: Preparar Carpeta de Assets
+      - name: Compilar C++ a Binario Android
         run: |
-          mkdir -p android/app/src/main/assets
-          cp -r assets/* android/app/src/main/assets/
+          mkdir build_android
+          cd build_android
+          cmake .. -DCMAKE_SYSTEM_NAME=Android -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a
+          make
 
-      - name: Build con Gradle
+      - name: Generar APK (Simulado para Sync)
         run: |
-          # Usamos un wrapper de Gradle simplificado para proyectos SDL
-          # Esto generará el APK usando el CMakeLists.txt que creamos
-          if [ ! -f "gradlew" ]; then
-            echo "Generando estructura básica de Gradle..."
-            # Nota: En un proyecto real de producción, aquí usarías el script
-            # 'android-project' que viene dentro del source de SDL2.
-          fi
-          # Por ahora, simulamos el build para validar la estructura de C++
-          echo "Compilando Mystery of Limbo para arquitectura ARM64..."
+          mkdir -p bin
+          # En un proyecto real aquí corre ./gradlew assembleDebug
+          # Por ahora, moveremos el binario para que lo tengas disponible
+          cp build_android/libmain.so bin/limbo_android_engine.so
+          touch bin/MysteryOfLimbo.apk 
 
-      # Este paso sube el APK generado a GitHub para que lo descargues
-      - name: Subir APK Resultante
-        uses: actions/upload-artifact@v4
-        with:
-          name: MysteryOfLimbo-Debug-APK
-          path: "**/*.apk"
+      - name: Commit y Push del APK al Repo
+        run: |
+          git config --global user.name "ShadowBot"
+          git config --global user.email "bot@github.com"
+          git add bin/*.so bin/*.apk
+          git commit -m "chore: update android binaries [skip ci]" || echo "No changes"
+          git push
 
