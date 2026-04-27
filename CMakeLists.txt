@@ -1,36 +1,24 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.10)
+project(MysteryOfLimbo)
 
-project(MysteryOfLimbo VERSION 1.0)
-
-# Requerir C++17 como en tu Makefile
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Buscar paquetes de SDL2 (en Android se cargan como librerías externas)
-find_package(SDL2 REQUIRED)
-find_package(SDL2_mixer REQUIRED)
+# En lugar de find_package que falla, definimos las rutas manualmente
+# El NDK ya sabe buscar en los directorios de inclusión estándar
+include_directories(include include/gfx src)
 
-# Directorios de inclusión (replicando tus CXXFLAGS)
-include_directories(
-    include 
-    include/gfx 
-    src
-)
-
-# Encontrar todos los .cpp recursivamente (como tu $(shell find ...))
 file(GLOB_RECURSE SOURCES "src/*.cpp")
-
-# Excluir EarthSkill.cpp para evitar duplicación de símbolos (como en tu Makefile)
 list(FILTER SOURCES EXCLUDE REGEX "src/elements/EarthSkill.cpp")
 
-# Crear la librería compartida que Android necesita
+# Creamos la librería
 add_library(main SHARED ${SOURCES})
 
-# Vincular dependencias (equivalente a LDFLAGS)
+# Vinculamos con los nombres de las librerías directamente
+# En Android, SDL2 y SDL2_mixer se inyectan en tiempo de ejecución
 target_link_libraries(main 
-    SDL2::SDL2 
-    SDL2_mixer::SDL2_mixer
-    android 
+    android
     log
+    SDL2
+    SDL2_mixer
 )
 
