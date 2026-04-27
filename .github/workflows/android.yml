@@ -23,8 +23,9 @@ jobs:
       - name: Instalar NDK y Dependencias
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsdl2-dev libsdl2-mixer-dev
-# Aquí es donde el script de SDL2 suele generar el proyecto.
+          sudo apt-get install -y libsdl2-dev libsdl2-mixer-dev pkg-config
+
+          # donde el script de SDL2 suele generar el proyecto.
           # Para este paso rápido, crearemos un placeholder que valide el binario.
 
       - name: Compilar C++ a Binario Android

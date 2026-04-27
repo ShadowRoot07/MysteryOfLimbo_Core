@@ -1,7 +1,7 @@
 #ifndef INPUT_MANAGER_H
 #define INPUT_MANAGER_H
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 // Estructura para manejar los datos del joystick táctil
 struct JoystickData {
