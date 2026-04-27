@@ -1,7 +1,7 @@
 #ifndef SHADOW_GFX_H
 #define SHADOW_GFX_H
 
-#include <SDL2/SDL2/SDL.h>
+#include <SDL2/SDL.h>
 #include <string>
 #include <map>
 #include <random>

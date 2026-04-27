@@ -9,7 +9,7 @@ include_directories(
     include 
     include/gfx 
     src
-    /usr/include/SDL2
+    /usr/include
 )
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
