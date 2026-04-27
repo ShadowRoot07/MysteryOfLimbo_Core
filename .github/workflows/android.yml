@@ -2,7 +2,7 @@ name: Android Build & Sync
 
 on:
   push:
-    branches: [ ShadowRoot-CreateSounds ]
+    branches: [ ShadowRoot-CreateAPK ]
 
 jobs:
   build:
