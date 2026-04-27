@@ -21,9 +21,9 @@ FetchContent_Declare(
 )
 
 # Desactivar opciones innecesarias de las librerías para acelerar el build
-set(SDL2_TEST OFF CACHE BOOL "" FORCE)
+set(SDL_SENSOR OFF CACHE BOOL "" FORCE)
+set(SDL_TEST OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
-
 FetchContent_MakeAvailable(SDL2 SDL2_mixer)
 # ----------------------------------------------
 
