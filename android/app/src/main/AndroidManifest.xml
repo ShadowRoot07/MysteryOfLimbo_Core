@@ -4,11 +4,10 @@
 
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
-    <application 
-        android:label="Mystery of Limbo" 
-        android:hasCode="true"
-        android:icon="@mipmap/ic_launcher">
-        
+    <application
+        android:label="Mystery of Limbo"
+        android:hasCode="false">
+
         <activity android:name="org.libsdl.app.SDLActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:exported="true">

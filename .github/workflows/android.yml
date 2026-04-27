@@ -40,24 +40,26 @@ jobs:
             -GNinja
           ninja main
 
-      - name: Generar APK Real
+      - name: Generar APK con AAPT2
         run: |
-          # Limpiamos cualquier residuo anterior
-          rm -f bin/MysteryOfLimbo_Debug.apk
-          mkdir -p proto_apk/lib/arm64-v8a
+          # 1. Definir rutas de herramientas de Android
+          export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
           
-          # 1. Copiamos el binario real compilado (.so) a la ruta interna de Android
-          find build_android -name "libmain.so" -exec cp {} proto_apk/lib/arm64-v8a/ \;
-
-          # 2. Copiamos el Manifiesto a la raíz del proto_apk
-          cp android/app/src/main/AndroidManifest.xml proto_apk/
-
-          # 3. Creamos el APK desde la carpeta proto_apk
-          cd proto_apk && zip -r ../bin/MysteryOfLimbo_Debug.apk .
+          # 2. Compilar el Manifiesto (Transforma texto a binario Android)
+          $TOOL_PATH/aapt2 link -o proto.apk \
+            --manifest android/app/src/main/AndroidManifest.xml \
+            -I $ANDROID_HOME/platforms/android-34/android.jar
           
-          # 4. Info de debug
-          cd ..
-          echo "Build exitoso: $(ls -lh bin/MysteryOfLimbo_Debug.apk)" > bin/build_info.txt
+          # 3. Crear estructura de librerías y meter el .so
+          mkdir -p lib/arm64-v8a
+          find build_android -name "libmain.so" -exec cp {} lib/arm64-v8a/ \;
+          
+          # 4. Meter la librería dentro del APK compilado usando zip (sin comprimir el .so)
+          zip -0 -r proto.apk lib/
+          
+          # 5. Mover al destino final
+          mkdir -p bin
+          mv proto.apk bin/MysteryOfLimbo_Debug.apk
 
       - name: Commit y Push del APK al Repo
         env:
