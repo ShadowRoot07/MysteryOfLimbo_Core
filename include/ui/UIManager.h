@@ -1,7 +1,7 @@
 #ifndef UIMANAGER_H
 #define UIMANAGER_H
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include "input/InputManager.h"
 #include "gfx/ShadowGFX.h"
 

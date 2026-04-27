@@ -4,7 +4,7 @@
 #include "physics/Collision.h"
 #include <vector>
 #include <cmath>
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 void ProcessWorld(Player& p, std::vector<Platform>& level, std::vector<Enemy>& enemies, std::vector<Projectile>& bullets, float dt) {
     p.isGrounded = false;

@@ -1,7 +1,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include <string>
 
 struct Vector2 { float x, y; };
