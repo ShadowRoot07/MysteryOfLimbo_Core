@@ -42,15 +42,22 @@ jobs:
 
       - name: Generar APK Real
         run: |
-          mkdir -p bin/lib/arm64-v8a
-          # Copiamos el binario real compilado
-          find build_android -name "libmain.so" -exec cp {} bin/lib/arm64-v8a/ \;
+          # Limpiamos cualquier residuo anterior
+          rm -f bin/MysteryOfLimbo_Debug.apk
+          mkdir -p proto_apk/lib/arm64-v8a
           
-          # Creamos un archivo zip que Android reconozca como APK
-          # Incluimos el manifiesto y el binario
-          cd bin && zip -r MysteryOfLimbo_Debug.apk lib/ ../android/app/src/main/AndroidManifest.xml
+          # 1. Copiamos el binario real compilado (.so) a la ruta interna de Android
+          find build_android -name "libmain.so" -exec cp {} proto_apk/lib/arm64-v8a/ \;
+
+          # 2. Copiamos el Manifiesto a la raíz del proto_apk
+          cp android/app/src/main/AndroidManifest.xml proto_apk/
+
+          # 3. Creamos el APK desde la carpeta proto_apk
+          cd proto_apk && zip -r ../bin/MysteryOfLimbo_Debug.apk .
           
-          echo "Build exitoso: $(ls -lh MysteryOfLimbo_Debug.apk)" > build_info.txt
+          # 4. Info de debug
+          cd ..
+          echo "Build exitoso: $(ls -lh bin/MysteryOfLimbo_Debug.apk)" > bin/build_info.txt
 
       - name: Commit y Push del APK al Repo
         env:
