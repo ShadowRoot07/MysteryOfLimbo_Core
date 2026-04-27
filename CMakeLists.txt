@@ -1,34 +1,48 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 project(MysteryOfLimbo)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# Cargamos el módulo para encontrar librerías
-find_package(PkgConfig REQUIRED)
+# --- GESTIÓN DE DEPENDENCIAS (FETCHCONTENT) ---
+include(FetchContent)
 
-# Buscamos SDL2 y SDL2_mixer en el sistema de GitHub
-pkg_check_modules(SDL2 REQUIRED sdl2)
-pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer)
-
-# Incluimos tus carpetas Y las que nos diga pkg-config
-include_directories(
-    include 
-    include/gfx 
-    src
-    ${SDL2_INCLUDE_DIRS}
-    ${SDL2_MIXER_INCLUDE_DIRS}
+# Descargar SDL2 base
+FetchContent_Declare(
+  SDL2
+  GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+  GIT_TAG release-2.30.2
 )
 
+# Descargar SDL2_mixer
+FetchContent_Declare(
+  SDL2_mixer
+  GIT_REPOSITORY https://github.com/libsdl-org/SDL_mixer.git
+  GIT_TAG release-2.8.0
+)
+
+# Desactivar opciones innecesarias de las librerías para acelerar el build
+set(SDL2_TEST OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(SDL2 SDL2_mixer)
+# ----------------------------------------------
+
+# Incluimos tus carpetas de código
+include_directories(include include/gfx src)
+
+# Escaneo de archivos fuente
 file(GLOB_RECURSE SOURCES "src/*.cpp")
+# Excluimos el archivo que me mencionaste que da problemas
 list(FILTER SOURCES EXCLUDE REGEX "src/elements/EarthSkill.cpp")
 
+# Creamos la librería compartida (.so) para Android
 add_library(main SHARED ${SOURCES})
 
-# Enlazamos usando las rutas absolutas que pkg-config encontró
+# Vinculamos con los targets oficiales de SDL2 descargados
 target_link_libraries(main 
     android
     log
-    ${SDL2_LIBRARIES}
-    ${SDL2_MIXER_LIBRARIES}
+    SDL2::SDL2
+    SDL2_mixer::SDL2_mixer
 )
 
