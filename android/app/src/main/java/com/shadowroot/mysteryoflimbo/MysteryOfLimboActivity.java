@@ -14,10 +14,10 @@ public class MysteryOfLimboActivity extends SDLActivity {
         };
     }
 
-    // Sobrescribimos para añadir un log que nos ayude a debuggear en Termux con logcat
     @Override
     protected void onCreate(android.os.Bundle savedInstanceState) {
-        Log.d("ShadowRoot", "Iniciando Mystery of Limbo...");
+        // Este log aparecerá en 'logcat' para confirmar que la clase se encontró
+        Log.d("ShadowRoot", "Clase MysteryOfLimboActivity encontrada con éxito");
         super.onCreate(savedInstanceState);
     }
 }
