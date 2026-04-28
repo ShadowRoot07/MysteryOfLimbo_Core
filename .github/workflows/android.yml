@@ -42,26 +42,27 @@ jobs:
 
       - name: Generar APK Profesional con AAPT2
         run: |
-          # 1. Rutas de herramientas
           export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
           
-          # 2. Crear un APK base con el Manifiesto BINARIO
-          # Esto genera un APK que Android sí puede leer
+          # Crear APK base
           $TOOL_PATH/aapt2 link -o base.apk \
             --manifest android/app/src/main/AndroidManifest.xml \
             -I $PLATFORM \
             --version-code 1 --version-name "1.0"
           
-          # 3. Preparar las librerías nativas en la ruta correcta
+          # Preparar librerías
           mkdir -p lib/arm64-v8a
           find build_android -name "libmain.so" -exec cp {} lib/arm64-v8a/ \;
           
-          # 4. Agregar la librería al APK (sin compresión para que sea cargable)
+          # Inyectar librería
           zip -0 base.apk lib/arm64-v8a/libmain.so
           
-          # 5. ALINEAR EL APK (Crítico para que no diga "Paquete Inválido")
-          $TOOL_PATH/zipalign -v 4 base.apk bin/MysteryOfLimbo_Debug.apk
+          # Asegurar que la carpeta bin existe y está lista
+          mkdir -p bin
+          
+          # Alinear y forzar salida (-f)
+          $TOOL_PATH/zipalign -f -v 4 base.apk bin/MysteryOfLimbo_Debug.apk
           
           echo "APK Generado y Alineado correctamente." > bin/build_info.txt
 
