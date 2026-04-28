@@ -2,13 +2,14 @@ package com.shadowroot.mysteryoflimbo;
 
 import org.libsdl.app.SDLActivity;
 
-// Extendemos SDLActivity para aprovechar la inicialización de SDL
 public class MysteryOfLimboActivity extends SDLActivity {
 
     @Override
     protected String[] getLibraries() {
         return new String[] {
-            "main" // Esto carga tu libmain.so
+            "SDL2",       // Cargamos el núcleo de SDL primero
+            "SDL2_mixer", // Cargamos el mezclador para el audio
+            "main"        // Finalmente tu juego, que depende de las anteriores
         };
     }
 }

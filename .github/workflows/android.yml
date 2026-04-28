@@ -63,13 +63,22 @@ jobs:
             -I $PLATFORM \
             --version-code 1 --version-name "1.0"
 
-          # 4. Inyectar TODO (DEX y Librería Nativa)
-          # El archivo classes.dex DEBE ir en la raíz del APK
+          # 4. Inyectar TODO (DEX y TODAS las Librerías Nativas)
           zip -j base.apk bin/classes.dex
-          
+
           mkdir -p lib/arm64-v8a
+          
+          # Copiamos tu binario principal
           find build_android -name "libmain.so" -exec cp {} lib/arm64-v8a/ \;
-          zip -0 base.apk lib/arm64-v8a/libmain.so
+
+          # BUSCAR E INCLUIR LIBRERÍAS DE SDL2
+          # Buscamos los archivos .so dentro de lo que se compiló o descargó
+          # Nota: Si el compilador de C++ las generó en build_android, las tomará de ahí.
+          find . -name "libSDL2.so" -exec cp {} lib/arm64-v8a/ \;
+          find . -name "libSDL2_mixer.so" -exec cp {} lib/arm64-v8a/ \;
+          
+          # Empaquetamos toda la carpeta de librerías
+          zip -r base.apk lib/arm64-v8a/
 
           # 5. Zipalign (se mantiene igual)
           mkdir -p bin
