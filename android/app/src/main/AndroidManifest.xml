@@ -4,15 +4,16 @@
 
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-    
+
     <application
         android:label="Mystery of Limbo"
+        android:icon="@mipmap/ic_launcher"
         android:hasCode="true">
 
-        <activity android:name="com.shadowroot.mysteryoflimbo.MysteryOfLimboActivity"
-            android:configChanges="orientation|keyboardHidden|screenSize"
-            android:exported="true">
-            <meta-data android:name="android.app.lib_name" android:value="main" />
+        <activity android:name=".MysteryOfLimboActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|smallestScreenSize"
+            android:exported="true"
+            android:launchMode="singleInstance">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

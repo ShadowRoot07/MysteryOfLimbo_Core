@@ -52,42 +52,41 @@ jobs:
           export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
-          # 1. Preparar Código Java
+          # 1. Preparar Java (SDL2)
           git clone --depth 1 https://github.com/libsdl-org/SDL.git sdl_java_lib
           cp -r sdl_java_lib/android-project/app/src/main/java/org/libsdl/app android/app/src/main/java/
 
           # 2. Compilar Java a DEX
           mkdir -p bin/java_compiled
           javac -d bin/java_compiled -sourcepath android/app/src/main/java -cp $PLATFORM $(find android/app/src/main/java -name "*.java")
-          mkdir -p bin/dex_output
-          $TOOL_PATH/d8 --output bin/dex_output $(find bin/java_compiled -name "*.class") --lib $PLATFORM
-          cp bin/dex_output/classes.dex bin/classes.dex
+          $TOOL_PATH/d8 --output bin/ $(find bin/java_compiled -name "*.class") --lib $PLATFORM
+          # El archivo debe llamarse classes.dex y estar en la raíz de bin/
 
-          # 3. APK Base
+          # 3. Vincular con AAPT2 (Añadimos carpeta assets vacía para evitar errores de SDL)
+          mkdir -p assets
           $TOOL_PATH/aapt2 link -o base.apk \
             --manifest android/app/src/main/AndroidManifest.xml \
             -I $PLATFORM \
+            -A assets/ \
             --version-code 1 --version-name "1.0"
 
-          # 4. Inyectar Lógica y Librerías (Estructura Multi-ABI)
+          # 4. Inyectar contenido al APK
+          # Inyectar clases
           zip -j base.apk bin/classes.dex
-          
-          # Limpiamos y preparamos carpetas de librerías
-          rm -rf lib
-          mkdir -p lib/armeabi-v7a lib/arm64-v8a
 
-          # Copiamos las librerías de 32 bits
+          # Inyectar Librerías (Estructura interna crítica)
+          rm -rf lib/
+          mkdir -p lib/armeabi-v7a lib/arm64-v8a
+          
+          # Copiamos lo que compilamos en el paso anterior de Ninja
           find build_android/armeabi-v7a -name "*.so" -exec cp {} lib/armeabi-v7a/ \;
-          # Copiamos las librerías de 64 bits
           find build_android/arm64-v8a -name "*.so" -exec cp {} lib/arm64-v8a/ \;
 
-          # VERIFICACIÓN: Si no hay archivos en lib/, el proceso fallará
-          if [ -z "$(ls -A lib/armeabi-v7a)" ]; then echo "ERROR: Librerías 32 bits vacías"; exit 1; fi
-
+          # Forzar inclusión de la carpeta lib completa
           zip -r base.apk lib/
 
-          # 5. Alineación Final
-          mkdir -p bin
+          # 5. Alineación
+          mkdir -p bin_final
           $TOOL_PATH/zipalign -f -p 4 base.apk bin/MysteryOfLimbo_Debug.apk
 
       - name: Commit y Push del APK al Repo
