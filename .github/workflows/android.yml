@@ -59,10 +59,11 @@ jobs:
           # 2. Compilar Java a DEX
           mkdir -p bin/java_compiled
           javac -d bin/java_compiled -sourcepath android/app/src/main/java -cp $PLATFORM $(find android/app/src/main/java -name "*.java")
-          $TOOL_PATH/d8 --output bin/ $(find bin/java_compiled -name "*.class") --lib $PLATFORM
-          # El archivo debe llamarse classes.dex y estar en la raíz de bin/
+          # Forzamos que d8 genere el archivo con el nombre correcto
+          $TOOL_PATH/d8 --output bin/classes.zip $(find bin/java_compiled -name "*.class") --lib $PLATFORM
+          unzip -p bin/classes.zip classes.dex > bin/classes.dex
 
-          # 3. Vincular con AAPT2 (Añadimos carpeta assets vacía para evitar errores de SDL)
+          # 3. Vincular con AAPT2
           mkdir -p assets
           $TOOL_PATH/aapt2 link -o base.apk \
             --manifest android/app/src/main/AndroidManifest.xml \
@@ -71,22 +72,18 @@ jobs:
             --version-code 1 --version-name "1.0"
 
           # 4. Inyectar contenido al APK
-          # Inyectar clases
           zip -j base.apk bin/classes.dex
-
-          # Inyectar Librerías (Estructura interna crítica)
+          
           rm -rf lib/
           mkdir -p lib/armeabi-v7a lib/arm64-v8a
           
-          # Copiamos lo que compilamos en el paso anterior de Ninja
           find build_android/armeabi-v7a -name "*.so" -exec cp {} lib/armeabi-v7a/ \;
           find build_android/arm64-v8a -name "*.so" -exec cp {} lib/arm64-v8a/ \;
 
-          # Forzar inclusión de la carpeta lib completa
           zip -r base.apk lib/
 
           # 5. Alineación
-          mkdir -p bin_final
+          mkdir -p bin
           $TOOL_PATH/zipalign -f -p 4 base.apk bin/MysteryOfLimbo_Debug.apk
 
       - name: Commit y Push del APK al Repo

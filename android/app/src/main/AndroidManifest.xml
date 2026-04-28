@@ -7,7 +7,6 @@
 
     <application
         android:label="Mystery of Limbo"
-        android:icon="@mipmap/ic_launcher"
         android:hasCode="true">
 
         <activity android:name=".MysteryOfLimboActivity"
