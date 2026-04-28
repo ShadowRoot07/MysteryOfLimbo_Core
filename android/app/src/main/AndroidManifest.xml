@@ -3,18 +3,16 @@
     package="com.shadowroot.mysteryoflimbo">
 
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
-
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-
+    
     <application
         android:label="Mystery of Limbo"
-        android:hasCode="false"
-        android:extractNativeLibs="true"> <activity android:name="org.libsdl.app.SDLActivity"
+        android:hasCode="true">
+
+        <activity android:name="com.shadowroot.mysteryoflimbo.MysteryOfLimboActivity"
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:exported="true">
-            
             <meta-data android:name="android.app.lib_name" android:value="main" />
-            
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
