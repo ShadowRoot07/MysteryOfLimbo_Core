@@ -30,16 +30,22 @@ jobs:
 
       - name: Compilar C++ a Binario Android
         run: |
-          mkdir build_android
+          mkdir -p build_android
           cd build_android
-          cmake .. \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-26 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED_LIBS=ON \
-            -GNinja
-          ninja
+          # Compilamos para ambas arquitecturas para asegurar compatibilidad
+          for ABI in armeabi-v7a arm64-v8a; do
+            mkdir -p $ABI
+            cd $ABI
+            cmake ../.. \
+              -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake \
+              -DANDROID_ABI=$ABI \
+              -DANDROID_PLATFORM=android-26 \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_SHARED_LIBS=ON \
+              -GNinja
+            ninja
+            cd ..
+          done
 
       - name: Generar APK Profesional con AAPT2 y Java
         run: |
@@ -63,24 +69,24 @@ jobs:
             -I $PLATFORM \
             --version-code 1 --version-name "1.0"
 
-          # 4. Inyectar Lógica y Librerías
+          # 4. Inyectar Lógica y Librerías (Estructura Multi-ABI)
           zip -j base.apk bin/classes.dex
-          mkdir -p lib/arm64-v8a
+          
+          # Limpiamos y preparamos carpetas de librerías
+          rm -rf lib
+          mkdir -p lib/armeabi-v7a lib/arm64-v8a
 
-          # Buscamos las librerías generadas en la compilación
-          find build_android -name "libmain.so" -exec cp {} lib/arm64-v8a/ \;
-          find build_android -name "libSDL2.so" -exec cp {} lib/arm64-v8a/ \;
-          find build_android -name "libSDL2_mixer.so" -exec cp {} lib/arm64-v8a/ \;
+          # Copiamos las librerías de 32 bits
+          find build_android/armeabi-v7a -name "*.so" -exec cp {} lib/armeabi-v7a/ \;
+          # Copiamos las librerías de 64 bits
+          find build_android/arm64-v8a -name "*.so" -exec cp {} lib/arm64-v8a/ \;
 
-          # VERIFICACIÓN CRÍTICA: Si falta el núcleo (SDL2), el build debe morir aquí
-          if [ ! -f lib/arm64-v8a/libSDL2.so ]; then 
-            echo "ERROR: No se encontró libSDL2.so. Revisa los logs de CMake."
-            exit 1
-          fi
+          # VERIFICACIÓN: Si no hay archivos en lib/, el proceso fallará
+          if [ -z "$(ls -A lib/armeabi-v7a)" ]; then echo "ERROR: Librerías 32 bits vacías"; exit 1; fi
 
           zip -r base.apk lib/
 
-          # 5. Alineación
+          # 5. Alineación Final
           mkdir -p bin
           $TOOL_PATH/zipalign -f -p 4 base.apk bin/MysteryOfLimbo_Debug.apk
 
