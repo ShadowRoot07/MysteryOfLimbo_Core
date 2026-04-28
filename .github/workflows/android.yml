@@ -2,56 +2,97 @@ name: Android Build (Mystery of Limbo)
 
 on:
   push:
-    branches: [ main, ShadowRoot-CreateSounds ]
+    branches: [ ShadowRoot-CreateAPK ]
   pull_request:
-    branches: [ main ]
+    branches: [ ShadowRoot-CreateAPK ]
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout del código
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
-      - name: Configurar Java
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Entorno
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Instalar Android SDK & NDK
-        uses: android-actions/setup-android@v3
-
-      - name: Instalar SDL2 para Android
+      - name: Instalar NDK y Herramientas
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsdl2-mixer-dev
+          sudo apt-get install -y cmake ninja-build
 
-      # Android necesita los assets en una carpeta específica para empaquetarlos
-      - name: Preparar Carpeta de Assets
+      - name: Compilar C++ a Binario Android
         run: |
-          mkdir -p android/app/src/main/assets
-          cp -r assets/* android/app/src/main/assets/
+          mkdir -p build_android
+          cd build_android
+          # Compilamos para ambas arquitecturas para asegurar compatibilidad
+          for ABI in armeabi-v7a arm64-v8a; do
+            mkdir -p $ABI
+            cd $ABI
+            cmake ../.. \
+              -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake \
+              -DANDROID_ABI=$ABI \
+              -DANDROID_PLATFORM=android-26 \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_SHARED_LIBS=ON \
+              -GNinja
+            ninja
+            cd ..
+          done
 
-      - name: Build con Gradle
+      - name: Generar APK Profesional con AAPT2 y Java
         run: |
-          # Usamos un wrapper de Gradle simplificado para proyectos SDL
-          # Esto generará el APK usando el CMakeLists.txt que creamos
-          if [ ! -f "gradlew" ]; then
-            echo "Generando estructura básica de Gradle..."
-            # Nota: En un proyecto real de producción, aquí usarías el script
-            # 'android-project' que viene dentro del source de SDL2.
-          fi
-          # Por ahora, simulamos el build para validar la estructura de C++
-          echo "Compilando Mystery of Limbo para arquitectura ARM64..."
+          export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
+          export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
-      # Este paso sube el APK generado a GitHub para que lo descargues
-      - name: Subir APK Resultante
-        uses: actions/upload-artifact@v4
-        with:
-          name: MysteryOfLimbo-Debug-APK
-          path: "**/*.apk"
+          # 1. Preparar Java (SDL2)
+          git clone --depth 1 https://github.com/libsdl-org/SDL.git sdl_java_lib
+          cp -r sdl_java_lib/android-project/app/src/main/java/org/libsdl/app android/app/src/main/java/
+
+          # 2. Compilar Java a DEX
+          mkdir -p bin/java_compiled
+          javac -d bin/java_compiled -sourcepath android/app/src/main/java -cp $PLATFORM $(find android/app/src/main/java -name "*.java")
+          # Forzamos que d8 genere el archivo con el nombre correcto
+          $TOOL_PATH/d8 --output bin/classes.zip $(find bin/java_compiled -name "*.class") --lib $PLATFORM
+          unzip -p bin/classes.zip classes.dex > bin/classes.dex
+
+          # 3. Vincular con AAPT2
+          mkdir -p assets
+          $TOOL_PATH/aapt2 link -o base.apk \
+            --manifest android/app/src/main/AndroidManifest.xml \
+            -I $PLATFORM \
+            -A assets/ \
+            --version-code 1 --version-name "1.0"
+
+          # 4. Inyectar contenido al APK
+          zip -j base.apk bin/classes.dex
+          
+          rm -rf lib/
+          mkdir -p lib/armeabi-v7a lib/arm64-v8a
+          
+          find build_android/armeabi-v7a -name "*.so" -exec cp {} lib/armeabi-v7a/ \;
+          find build_android/arm64-v8a -name "*.so" -exec cp {} lib/arm64-v8a/ \;
+
+          zip -r base.apk lib/
+
+          # 5. Alineación
+          mkdir -p bin
+          $TOOL_PATH/zipalign -f -p 4 base.apk bin/MysteryOfLimbo_Debug.apk
+
+      - name: Commit y Push del APK al Repo
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "ShadowRoot07 (via GitHub Actions)"
+          git config --global user.email "shadowroot07@users.noreply.github.com"
+          git add bin/
+          git commit -m "chore: build android binary [skip ci]" || echo "No hay cambios para subir"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ShadowRoot-CreateAPK
 

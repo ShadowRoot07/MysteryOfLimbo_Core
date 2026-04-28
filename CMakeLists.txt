@@ -1,36 +1,48 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.14)
+project(MysteryOfLimbo)
 
-project(MysteryOfLimbo VERSION 1.0)
-
-# Requerir C++17 como en tu Makefile
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Buscar paquetes de SDL2 (en Android se cargan como librerías externas)
-find_package(SDL2 REQUIRED)
-find_package(SDL2_mixer REQUIRED)
+# --- GESTIÓN DE DEPENDENCIAS (FETCHCONTENT) ---
+include(FetchContent)
 
-# Directorios de inclusión (replicando tus CXXFLAGS)
-include_directories(
-    include 
-    include/gfx 
-    src
+# Descargar SDL2 base
+FetchContent_Declare(
+  SDL2
+  GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+  GIT_TAG release-2.30.2
 )
 
-# Encontrar todos los .cpp recursivamente (como tu $(shell find ...))
-file(GLOB_RECURSE SOURCES "src/*.cpp")
+# Descargar SDL2_mixer
+FetchContent_Declare(
+  SDL2_mixer
+  GIT_REPOSITORY https://github.com/libsdl-org/SDL_mixer.git
+  GIT_TAG release-2.8.0
+)
 
-# Excluir EarthSkill.cpp para evitar duplicación de símbolos (como en tu Makefile)
+# Desactivar opciones innecesarias de las librerías para acelerar el build
+set(SDL_SENSOR OFF CACHE BOOL "" FORCE)
+set(SDL_TEST OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(SDL2 SDL2_mixer)
+# ----------------------------------------------
+
+# Incluimos tus carpetas de código
+include_directories(include include/gfx src)
+
+# Escaneo de archivos fuente
+file(GLOB_RECURSE SOURCES "src/*.cpp")
+# Excluimos el archivo que me mencionaste que da problemas
 list(FILTER SOURCES EXCLUDE REGEX "src/elements/EarthSkill.cpp")
 
-# Crear la librería compartida que Android necesita
+# Creamos la librería compartida (.so) para Android
 add_library(main SHARED ${SOURCES})
 
-# Vincular dependencias (equivalente a LDFLAGS)
+# Vinculamos con los targets oficiales de SDL2 descargados
 target_link_libraries(main 
-    SDL2::SDL2 
-    SDL2_mixer::SDL2_mixer
-    android 
+    android
     log
+    SDL2::SDL2
+    SDL2_mixer::SDL2_mixer
 )
 
