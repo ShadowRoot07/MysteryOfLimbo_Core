@@ -40,26 +40,30 @@ jobs:
             -GNinja
           ninja main
 
-      - name: Generar APK con AAPT2
+      - name: Generar APK Profesional con AAPT2
         run: |
-          # 1. Definir rutas de herramientas de Android
+          # 1. Rutas de herramientas
           export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
+          export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
           
-          # 2. Compilar el Manifiesto (Transforma texto a binario Android)
-          $TOOL_PATH/aapt2 link -o proto.apk \
+          # 2. Crear un APK base con el Manifiesto BINARIO
+          # Esto genera un APK que Android sí puede leer
+          $TOOL_PATH/aapt2 link -o base.apk \
             --manifest android/app/src/main/AndroidManifest.xml \
-            -I $ANDROID_HOME/platforms/android-34/android.jar
+            -I $PLATFORM \
+            --version-code 1 --version-name "1.0"
           
-          # 3. Crear estructura de librerías y meter el .so
+          # 3. Preparar las librerías nativas en la ruta correcta
           mkdir -p lib/arm64-v8a
           find build_android -name "libmain.so" -exec cp {} lib/arm64-v8a/ \;
           
-          # 4. Meter la librería dentro del APK compilado usando zip (sin comprimir el .so)
-          zip -0 -r proto.apk lib/
+          # 4. Agregar la librería al APK (sin compresión para que sea cargable)
+          zip -0 base.apk lib/arm64-v8a/libmain.so
           
-          # 5. Mover al destino final
-          mkdir -p bin
-          mv proto.apk bin/MysteryOfLimbo_Debug.apk
+          # 5. ALINEAR EL APK (Crítico para que no diga "Paquete Inválido")
+          $TOOL_PATH/zipalign -v 4 base.apk bin/MysteryOfLimbo_Debug.apk
+          
+          echo "APK Generado y Alineado correctamente." > bin/build_info.txt
 
       - name: Commit y Push del APK al Repo
         env:
