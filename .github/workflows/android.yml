@@ -32,13 +32,16 @@ jobs:
         run: |
           mkdir build_android
           cd build_android
+          # Añadimos flags para forzar la compilación de librerías compartidas de SDL
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-26 \
             -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON \
             -GNinja
-          ninja main
+          # Compilamos TODO, no solo main, para que se generen las .so de SDL
+          ninja 
 
       - name: Generar APK Profesional con AAPT2 y Java
         run: |
@@ -46,6 +49,47 @@ jobs:
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
           # 1. Preparar Código Java (SDL2 + Tu Actividad)
+          git clone --depth 1 https://github.com/libsdl-org/SDL.git sdl_java_lib
+          cp -r sdl_java_lib/android-project/app/src/main/java/org/libsdl/app android/app/src/main/java/
+
+          # 2. Compilar Java a DEX (Igual)
+          mkdir -p bin/java_compiled
+          javac -d bin/java_compiled -sourcepath android/app/src/main/java -cp $PLATFORM $(find android/app/src/main/java -name "*.java")
+          mkdir -p bin/dex_output
+          $TOOL_PATH/d8 --output bin/dex_output $(find bin/java_compiled -name "*.class") --lib $PLATFORM
+          cp bin/dex_output/classes.dex bin/classes.dex
+
+          # 3. APK Base
+          $TOOL_PATH/aapt2 link -o base.apk \
+            --manifest android/app/src/main/AndroidManifest.xml \
+            -I $PLATFORM \
+            --version-code 1 --version-name "1.0"
+
+          # 4. Inyectar Lógica y Librerías
+          zip -j base.apk bin/classes.dex
+          mkdir -p lib/arm64-v8a
+          
+          # Buscamos las librerías con nombres exactos para evitar basura
+          # Las buscamos específicamente en la carpeta de build
+          find build_android -name "libmain.so" -exec cp {} lib/arm64-v8a/ \;
+          find build_android -name "libSDL2.so" -exec cp {} lib/arm64-v8a/ \;
+          find build_android -name "libSDL2_mixer.so" -exec cp {} lib/arm64-v8a/ \;
+          
+          # FALLO CRÍTICO SI NO ESTÁN TODAS:
+          if [ ! -f lib/arm64-v8a/libSDL2.so ]; then echo "ERROR: No se encontró libSDL2.so. Revisa la compilación C++"; exit 1; fi
+          
+          zip -r base.apk lib/
+          
+          # 5. Alineación
+          mkdir -p bin
+          $TOOL_PATH/zipalign -f -p 4 base.apk bin/MysteryOfLimbo_Debug.apk
+
+      - name: Generar APK Profesional con AAPT2 y Java
+        run: |
+          export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
+          export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
+
+          # 1. Preparar Código Java
           git clone --depth 1 https://github.com/libsdl-org/SDL.git sdl_java_lib
           cp -r sdl_java_lib/android-project/app/src/main/java/org/libsdl/app android/app/src/main/java/
 
@@ -57,33 +101,29 @@ jobs:
           $TOOL_PATH/d8 --output bin/dex_output $(find bin/java_compiled -name "*.class") --lib $PLATFORM
           cp bin/dex_output/classes.dex bin/classes.dex
 
-          # 3. Vincular Recursos y Manifiesto (APK Base)
+          # 3. APK Base
           $TOOL_PATH/aapt2 link -o base.apk \
             --manifest android/app/src/main/AndroidManifest.xml \
             -I $PLATFORM \
             --version-code 1 --version-name "1.0"
 
-          # 4. Inyectar Lógica y Músculo (DEX + Librerías .so)
-          # Inyectamos el ejecutable Java
+          # 4. Inyectar Lógica y Librerías (Punto Crítico)
           zip -j base.apk bin/classes.dex
 
-          # Limpiamos e inyectamos TODAS las librerías nativas necesarias
-          rm -rf lib/
           mkdir -p lib/arm64-v8a
           
-          # Buscamos libmain.so, libSDL2.so y libSDL2_mixer.so en todo el espacio de trabajo
+          # Buscamos las librerías de forma exhaustiva
+          # Si usas CMake para SDL, suelen estar en build_android/_deps o subcarpetas
           find . -name "libmain.so" -exec cp {} lib/arm64-v8a/ \;
           find . -name "libSDL2.so" -exec cp {} lib/arm64-v8a/ \;
           find . -name "libSDL2_mixer.so" -exec cp {} lib/arm64-v8a/ \;
           
-          # Verificación de seguridad en el log de GitHub
-          echo "Librerías encontradas:"
-          ls -l lib/arm64-v8a/
-
-          # Inyectamos la estructura de librerías al APK
+          # COMPROBACIÓN DE TAMAÑO: Si lib/ está vacío, el build fallará aquí
+          if [ ! -f lib/arm64-v8a/libmain.so ]; then echo "ERROR: libmain.so no encontrado"; exit 1; fi
+          
           zip -r base.apk lib/
 
-          # 5. Optimización y Alineación Final
+          # 5. Alineación
           mkdir -p bin
           $TOOL_PATH/zipalign -f -p 4 base.apk bin/MysteryOfLimbo_Debug.apk
 
