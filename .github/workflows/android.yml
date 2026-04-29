@@ -53,24 +53,23 @@ jobs:
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
 
-          # --- PASO 1: PREPARACIÓN (Núcleo SDL2 Tradicional) ---
+          # --- PASO 1: PREPARACIÓN (Núcleo SDL2 Oficial) ---
           rm -rf java_src obj dex_out sdl_temp
           mkdir -p java_src/com/shadowroot/mysteryoflimbo obj dex_out
 
-          # Clonamos específicamente la rama de SDL2 (Rama release-2.x)
-          echo "Clonando fuentes oficiales de SDL2..."
-          git clone --branch release-2.x --depth 1 https://github.com/libsdl-org/SDL.git sdl_temp
+          echo "Clonando fuentes oficiales de SDL2 (Rama SDL2)..."
+          # La rama correcta para la versión 2 es 'SDL2'
+          git clone --branch SDL2 --depth 1 https://github.com/libsdl-org/SDL.git sdl_temp || {
+            echo "❌ Error al clonar rama SDL2. Listando ramas disponibles..."
+            git ls-remote --heads https://github.com/libsdl-org/SDL.git
+            exit 1
+          }
           
-          # En SDL2, los archivos Java están en una ruta muy específica:
-          # android-project/app/src/main/java/org/libsdl/app/
           echo "Extrayendo esqueleto Java de SDL2..."
+          # En SDL2 esta es la ruta garantizada
           cp -r sdl_temp/android-project/app/src/main/java/org java_src/
           
-          # Verificación de "Pesca": Buscamos si hay archivos extra de soporte en el repo
-          find sdl_temp -name "*.java" -path "*/org/libsdl/app/*" -exec cp -n {} java_src/org/libsdl/app/ \;
-          
-          # Tu actividad personalizada (MysteryOfLimboActivity.java)
-          # Asegúrate de que herede de SDLActivity (que ahora sí será la de SDL2)
+          # Tu actividad personalizada
           cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java java_src/com/shadowroot/mysteryoflimbo/
 
           # --- PASO 2: COMPILACIÓN TOTAL ---
@@ -79,9 +78,10 @@ jobs:
           TOTAL_FILES=$(cat java_files.txt | wc -l)
           echo "Total: $TOTAL_FILES"
           
-          # En SDL2 deberíamos tener cerca de 18-20 archivos .java
+          # Validamos que tengamos el set completo (SDL2 suele tener entre 18 y 22 archivos)
           if [ "$TOTAL_FILES" -le 12 ]; then
-            echo "❌ ERROR: No se encontraron los archivos de soporte de SDL2."
+            echo "❌ ERROR: Seguimos detectando pocos archivos. Contenido actual:"
+            ls -R java_src/org/libsdl/app/
             exit 1
           fi
 
