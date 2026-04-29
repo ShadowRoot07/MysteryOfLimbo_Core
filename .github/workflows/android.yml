@@ -56,23 +56,17 @@ jobs:
           git clone --depth 1 https://github.com/libsdl-org/SDL.git sdl_java_lib
           cp -r sdl_java_lib/android-project/app/src/main/java/org/libsdl/app android/app/src/main/java/
 
-          # 2. Compilar Java a DEX (Corregido)
-          mkdir -p bin/java_compiled
-          # Compilamos todas las clases manteniendo la estructura de paquetes
-          javac -d bin/java_compiled \
-                -sourcepath android/app/src/main/java \
-                -cp $PLATFORM \
-                $(find android/app/src/main/java -name "*.java")
+          # 2. Compilar Java a clases (Estructura de paquetes forzada)
+          mkdir -p obj
+          find android/app/src/main/java -name "*.java" > sources.txt
+          javac -d obj -cp $PLATFORM @sources.txt
 
-          # Generar el archivo DEX directamente desde las clases compiladas
-          $TOOL_PATH/d8 --output bin/classes.zip \
-                        $(find bin/java_compiled -name "*.class") \
-                        --lib $PLATFORM
-          
-          # Extraer el dex limpio
-          unzip -p bin/classes.zip classes.dex > bin/classes.dex
+          # 3. Convertir a DEX (Directamente a la raíz del build)
+          mkdir -p bin
+          $TOOL_PATH/d8 --output bin/ --lib $PLATFORM $(find obj -name "*.class")
+          # Esto generará 'bin/classes.dex' directamente
 
-          # 3. Vincular con AAPT2 (Generando el APK base con recursos vinculados)
+          # 4. Vincular con AAPT2 (APK Base)
           mkdir -p assets
           $TOOL_PATH/aapt2 link -o base.apk \
             --manifest android/app/src/main/AndroidManifest.xml \
@@ -80,21 +74,18 @@ jobs:
             -A assets/ \
             --version-code 1 --version-name "1.0"
 
-          # 4. Inyectar (Orden Crítico)
-          # Primero el código Java
+          # 5. Inyectar contenido al APK (Ubicación crítica en la raíz)
+          # Usamos -j para ignorar la ruta 'bin/' y que classes.dex quede en la raíz del APK
           zip -j base.apk bin/classes.dex
-
-          # Luego las librerías nativas en la ruta exacta que Android espera
+          
+          # Inyectar Librerías Nativas
           rm -rf lib/
           mkdir -p lib/armeabi-v7a lib/arm64-v8a
           find build_android/armeabi-v7a -name "*.so" -exec cp {} lib/armeabi-v7a/ \;
           find build_android/arm64-v8a -name "*.so" -exec cp {} lib/arm64-v8a/ \;
-          
-          # Inyectamos las carpetas lib/ al APK
           zip -r base.apk lib/
 
-          # 5. Alineación final
-          mkdir -p bin
+          # 6. Alineación
           $TOOL_PATH/zipalign -f -p 4 base.apk bin/MysteryOfLimbo_Debug.apk
 
       - name: Commit y Push del APK al Repo

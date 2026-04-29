@@ -2,6 +2,7 @@ package com.shadowroot.mysteryoflimbo;
 
 import org.libsdl.app.SDLActivity;
 import android.util.Log;
+import android.os.Bundle;
 
 public class MysteryOfLimboActivity extends SDLActivity {
 
@@ -15,9 +16,9 @@ public class MysteryOfLimboActivity extends SDLActivity {
     }
 
     @Override
-    protected void onCreate(android.os.Bundle savedInstanceState) {
-        // Este log aparecerá en 'logcat' para confirmar que la clase se encontró
-        Log.d("ShadowRoot", "Clase MysteryOfLimboActivity encontrada con éxito");
+    protected void onCreate(Bundle savedInstanceState) {
+        // Este log es nuestra señal de vida en logcat
+        Log.i("ShadowRoot", "=== [ Mystery of Limbo: ENGINE START ] ===");
         super.onCreate(savedInstanceState);
     }
 }
