@@ -52,45 +52,45 @@ jobs:
           export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
-          # 1. Preparar rutas
-          mkdir -p java_all/org/libsdl/app
-          mkdir -p java_all/com/shadowroot/mysteryoflimbo
+          # 1. Crear estructura de proyecto estándar
+          mkdir -p src/main/java/org/libsdl/app
+          mkdir -p src/main/java/com/shadowroot/mysteryoflimbo
 
-          # 2. Traer fuentes
+          # 2. Descargar SDL y extraer TODAS sus partes (Java y Libs)
           git clone --depth 1 https://github.com/libsdl-org/SDL.git sdl_temp
-          cp -r sdl_temp/android-project/app/src/main/java/org/libsdl/app/* java_all/org/libsdl/app/
-          cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java java_all/com/shadowroot/mysteryoflimbo/
+          cp -r sdl_temp/android-project/app/src/main/java/org/libsdl/app/* src/main/java/org/libsdl/app/
+          
+          # 3. Mover TU código a la estructura
+          cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java src/main/java/com/shadowroot/mysteryoflimbo/
 
-          # 3. Compilar con validación
+          # 4. Compilar Java con Verbose (Para ver errores en los logs)
           mkdir -p obj
-          find java_all -name "*.java" > java_sources.txt
-          javac -d obj -cp $PLATFORM @java_sources.txt
+          find src/main/java -name "*.java" > sources.txt
+          javac -verbose -d obj -cp $PLATFORM @sources.txt
 
-          # 4. Generar DEX
+          # 5. Generar DEX (Forzando la inclusión de todo el árbol de clases)
           mkdir -p bin_dex
-          # Pasamos los archivos encontrados para asegurar que d8 los vea
           $TOOL_PATH/d8 --output bin_dex/ --lib $PLATFORM --min-api 26 $(find obj -name "*.class")
 
-          # 5. AAPT2 Link
-          mkdir -p assets
+          # 6. Vincular Manifiesto
           $TOOL_PATH/aapt2 link -o base.apk \
             --manifest android/app/src/main/AndroidManifest.xml \
             -I $PLATFORM \
             -A assets/ \
             --version-code 1 --version-name "1.0"
 
-          # 6. Inyección de DEX (Garantizado en la raíz)
+          # 7. Inyectar DEX
           cp bin_dex/classes.dex .
           zip -g base.apk classes.dex
 
-          # 7. Inyectar Librerías Nativa (.so)
-          rm -rf lib && mkdir -p lib/armeabi-v7a lib/arm64-v8a
-          cp build_android/armeabi-v7a/*.so lib/armeabi-v7a/ || true
-          cp build_android/arm64-v8a/*.so lib/arm64-v8a/ || true
+          # 8. Inyectar TODAS las librerías nativas (Las de SDL + La tuya)
+          mkdir -p lib/armeabi-v7a lib/arm64-v8a
+          # Buscamos todas las .so generadas en el build de C++
+          find build_android/armeabi-v7a -name "*.so" -exec cp {} lib/armeabi-v7a/ \;
+          find build_android/arm64-v8a -name "*.so" -exec cp {} lib/arm64-v8a/ \;
           zip -r base.apk lib/
 
-          # 8. Alineación final
-          mkdir -p bin
+          # 9. Finalizar
           $TOOL_PATH/zipalign -f -p 4 base.apk bin/MysteryOfLimbo_Debug.apk
 
       - name: Commit y Push del APK al Repo
