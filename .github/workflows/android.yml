@@ -52,31 +52,38 @@ jobs:
           export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
-          # --- PASO 1: PREPARACIÓN (Estructura de Paquetes Garantizada) ---
-          rm -rf java_src obj dex_out
-          mkdir -p java_src obj dex_out
+          # --- PASO 1: PREPARACIÓN (Búsqueda Exhaustiva de Fuentes) ---
+          rm -rf java_src obj dex_out sdl_temp
+          mkdir -p java_src/com/shadowroot/mysteryoflimbo obj dex_out
 
-          # Clonar SDL fresco
-          git clone --depth 1 https://github.com/libsdl-org/SDL.git sdl_temp
+          # Clonar SDL completo (sin depth 1 para evitar archivos faltantes)
+          git clone https://github.com/libsdl-org/SDL.git sdl_temp
           
-          # COPIA CRÍTICA: En lugar de usar *, copiamos la carpeta completa para mantener subdirectorios
-          # org/libsdl/app/ contiene subcarpetas como 'hid', etc.
-          cp -r sdl_temp/android-project/app/src/main/java/* java_src/
+          # BUSCADOR: Encontramos todos los .java de SDL y los movemos a java_src respetando su paquete
+          echo "Buscando fuentes de SDL..."
+          find sdl_temp -name "*.java" -exec cp --parents {} . \;
           
-          # Tu actividad personalizada (aseguramos que el directorio exista)
-          mkdir -p java_src/com/shadowroot/mysteryoflimbo
+          # Movemos lo encontrado a java_src (ajustando la ruta que crea --parents)
+          # Buscamos la carpeta 'org' que se creó en la raíz y la movemos
+          mv sdl_temp/android-project/app/src/main/java/org java_src/ 2>/dev/null || mv org java_src/
+          
+          # Tu actividad personalizada
           cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java java_src/com/shadowroot/mysteryoflimbo/
 
           # --- PASO 2: COMPILACIÓN TOTAL ---
-          # Eliminamos archivos que no sean .java por si acaso
-          find java_src -type f ! -name "*.java" -delete
-          
-          # Generamos la lista de archivos con rutas relativas limpias
+          # Limpiamos y listamos
           find java_src -name "*.java" > java_files.txt
           
-          echo "Archivos Java encontrados para compilar:"
-          wc -l java_files.txt
+          echo "Archivos Java reales encontrados:"
+          cat java_files.txt | wc -l
           
+          # Si el número sigue siendo bajo, listamos para ver qué hay
+          if [ $(cat java_files.txt | wc -l) -lt 20 ]; then
+            echo "❌ ERROR: Seguimos sin encontrar los archivos de SDL. Listado de emergencia:"
+            find sdl_temp -name "*.java"
+            exit 1
+          fi
+
           javac -d obj -cp $PLATFORM @java_files.txt || (echo "❌ ERROR: Falló javac" && exit 1)
 
           # --- PASO 3: DEX (Sin optimización) ---
