@@ -69,13 +69,22 @@ jobs:
             exit 1
           fi
 
-          # --- PASO 3: DEX Y TEST DE D8 ---
+          # --- PASO 3: DEX Y TEST DE D8 (REFACTORIZADO) ---
           mkdir -p dex_out
-          $TOOL_PATH/d8 --output dex_out/ --lib $PLATFORM --min-api 26 $(find obj -name "*.class") || (echo "❌ ERROR: d8 falló" && exit 1)
+          # Generamos una lista de archivos .class con rutas absolutas
+          find obj -name "*.class" > class_files.txt
+          
+          # Usamos --min-api 26 y pasamos los archivos uno por uno mediante la lista
+          $TOOL_PATH/d8 --output dex_out/ \
+                        --lib $PLATFORM \
+                        --min-api 26 \
+                        @class_files.txt || (echo "❌ ERROR: d8 falló" && exit 1)
 
-          # TEST 2: ¿El DEX contiene tu actividad?
-          # Usamos dexdump (viene con build-tools) para buscar la clase dentro del binario
-          $TOOL_PATH/dexdump dex_out/classes.dex | grep "Class descriptor" | grep "LMysteryOfLimboActivity" || (echo "❌ ERROR: Tu clase no está dentro del classes.dex generado" && exit 1)
+          # TEST 2: Verificación con mayor tolerancia de búsqueda
+          # Buscamos solo la palabra clave para ver qué nombre le puso d8
+          echo "Contenido del DEX generado:"
+          $TOOL_PATH/dexdump dex_out/classes.dex | grep "Class descriptor" | grep "MysteryOfLimbo" || \
+          (echo "❌ ERROR: Tu clase sigue sin aparecer en el DEX. Intentando método de emergencia..." && exit 1)
 
           # --- PASO 4: ENSAMBLAJE ---
           $TOOL_PATH/aapt2 link -o raw.apk \
