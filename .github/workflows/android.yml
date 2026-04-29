@@ -47,55 +47,62 @@ jobs:
             cd ..
           done
 
-      - name: Generar APK Profesional con AAPT2 y Java
+      - name: Generar APK Profesional (Aislamiento Total)
         run: |
           export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
-          # 1. Preparar Fuentes
-          mkdir -p java_src/org/libsdl/app java_src/com/shadowroot/mysteryoflimbo
+          # 1. Crear un área de trabajo limpia y absoluta para evitar colisiones
+          mkdir -p work/src/org/libsdl/app
+          mkdir -p work/src/com/shadowroot/mysteryoflimbo
+          mkdir -p work/obj
+
+          # 2. Descargar SDL y mover fuentes
           git clone --depth 1 https://github.com/libsdl-org/SDL.git sdl_temp
-          cp -r sdl_temp/android-project/app/src/main/java/org/libsdl/app/* java_src/org/libsdl/app/
-          cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java java_src/com/shadowroot/mysteryoflimbo/
-
-          # 2. Compilar y crear JAR
-          mkdir -p obj
-          find java_src -name "*.java" > sources.txt
-          javac -d obj -cp $PLATFORM @sources.txt
-          cd obj && jar cvf ../project.jar . && cd ..
-
-          # 3. Convertir JAR a DEX (Garantizado)
-          mkdir -p dex_out
-          $TOOL_PATH/d8 --output dex_out/ --lib $PLATFORM --min-api 26 project.jar
+          cp -r sdl_temp/android-project/app/src/main/java/org/libsdl/app/* work/src/org/libsdl/app/
           
-          # 4. Vincular Recursos (Solo recursos, sin código)
-          $TOOL_PATH/aapt2 link -o raw_base.apk \
-            --manifest android/app/src/main/AndroidManifest.xml \
-            -I $PLATFORM \
-            -A assets/ \
-            --version-code 1 --version-name "1.0"
+          # 3. Mover TU código (Ruta absoluta desde la raíz del repo)
+          cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java work/src/com/shadowroot/mysteryoflimbo/
 
-          # 5. ENSAMBLAJE MANUAL (Aquí matamos el bug)
-          mkdir -p apk_stage
-          cd apk_stage
-          unzip ../raw_base.apk
-          # Borramos CUALQUIER dex que haya puesto aapt2
-          rm -f classes.dex
-          # Copiamos nuestro DEX real
+          # 4. Compilar (Forzamos a javac a decirnos qué está haciendo)
+          # Ya no usamos 'find', listamos las rutas para que no haya pérdida
+          javac -d work/obj -cp $PLATFORM \
+            work/src/org/libsdl/app/*.java \
+            work/src/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java
+
+          # 5. Crear JAR y VALIDACIÓN CRÍTICA
+          cd work/obj
+          jar cvf ../../classes.jar .
+          cd ../..
+          
+          # Si MysteryOfLimboActivity NO está en el JAR, el build se detiene aquí
+          jar tf classes.jar | grep "MysteryOfLimboActivity" || (echo "ERROR: Tu clase no fue compilada" && exit 1)
+
+          # 6. DEX (Procesamos el JAR completo)
+          mkdir -p dex_out
+          $TOOL_PATH/d8 --output dex_out/ --lib $PLATFORM --min-api 26 classes.jar
+          
+          # 7. Vincular Recursos
+          $TOOL_PATH/aapt2 link -o raw.apk \
+            --manifest android/app/src/main/AndroidManifest.xml \
+            -I $PLATFORM -A assets/ --version-code 1 --version-name "1.0"
+
+          # 8. Ensamblaje Manual (Limpieza de cualquier residuo)
+          mkdir stage
+          cd stage && unzip ../raw.apk && rm -f classes.dex
           cp ../dex_out/classes.dex .
           
-          # Añadimos las librerías nativas en la ruta correcta
+          # Librerías
           mkdir -p lib/armeabi-v7a lib/arm64-v8a
           find ../build_android/armeabi-v7a -name "*.so" -exec cp {} lib/armeabi-v7a/ \;
           find ../build_android/arm64-v8a -name "*.so" -exec cp {} lib/arm64-v8a/ \;
-
-          # Re-empaquetamos todo desde cero
-          zip -r ../unaligned.apk .
+          
+          zip -r ../final_unaligned.apk .
           cd ..
 
-          # 6. Alineación final
+          # 9. Alineación
           mkdir -p bin
-          $TOOL_PATH/zipalign -f -p 4 unaligned.apk bin/MysteryOfLimbo_Debug.apk
+          $TOOL_PATH/zipalign -f -p 4 final_unaligned.apk bin/MysteryOfLimbo_Debug.apk
 
       - name: Commit y Push del APK al Repo
         env:
@@ -103,7 +110,10 @@ jobs:
         run: |
           git config --global user.name "ShadowRoot07 (via GitHub Actions)"
           git config --global user.email "shadowroot07@users.noreply.github.com"
+          git fetch origin ShadowRoot-CreateAPK
+          # Sincronizamos con el remoto antes de añadir el binario
+          git rebase origin/ShadowRoot-CreateAPK || git merge --strategy-recursive -X theirs origin/ShadowRoot-CreateAPK
           git add bin/
           git commit -m "chore: build android binary [skip ci]" || echo "No hay cambios para subir"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ShadowRoot-CreateAPK
+          git push --force https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ShadowRoot-CreateAPK
 
