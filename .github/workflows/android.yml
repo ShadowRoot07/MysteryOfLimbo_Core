@@ -53,51 +53,36 @@ jobs:
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
 
-          # --- PASO 1: PREPARACIÓN (Rescate de fuentes SDL2) ---
+          # --- PASO 1: DESCARGA DIRECTA DE SDL2 ESTABLE ---
           rm -rf java_src obj dex_out sdl_temp
           mkdir -p java_src/com/shadowroot/mysteryoflimbo obj dex_out
 
-          echo "Clonando repositorio de SDL..."
-          # Clonamos sin especificar rama para evitar el error 128, pero con profundidad 1
-          git clone --depth 1 https://github.com/libsdl-org/SDL.git sdl_temp
-          
-          # Entramos y buscamos la versión 2. 
-          # Si estamos en la rama principal (SDL3), intentamos cambiar a la 2.
-          cd sdl_temp
-          git fetch --tags
-          # Intentamos saltar a la rama SDL2 si existe, si no, nos quedamos donde estamos 
-          # y buscaremos los archivos manualmente.
-          git checkout SDL2 || echo "⚠️ Manteniendo rama actual, buscando archivos por estructura..."
-          cd ..
+          echo "Descargando SDL 2.30.12 (Versión estable garantizada)..."
+          curl -L https://github.com/libsdl-org/SDL/archive/refs/tags/release-2.30.12.tar.gz -o sdl2.tar.gz
+          mkdir sdl_temp
+          tar -xzf sdl2.tar.gz -C sdl_temp --strip-components=1
 
-          echo "Buscando archivos Java de SDL2..."
-          # Buscamos la ruta clásica de SDL2: android-project
-          if [ -d "sdl_temp/android-project/app/src/main/java/org" ]; then
-            cp -r sdl_temp/android-project/app/src/main/java/org java_src/
-            echo "✅ Estructura de SDL2 encontrada en android-project."
-          else
-            # Si no está ahí (porque es SDL3), buscamos cualquier carpeta 'org/libsdl/app'
-            echo "⚠️ Ruta clásica no encontrada. Buscando alternativa..."
-            find sdl_temp -type d -path "*/org/libsdl/app" -exec cp -r {} java_src/ \;
-          fi
+          echo "Extrayendo esqueleto Java de SDL2..."
+          # En SDL2 release, la ruta es fija
+          cp -r sdl_temp/android-project/app/src/main/java/org java_src/
           
-          # Inyectamos tu actividad
+          # Inyectamos tu actividad personalizada
           cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java java_src/com/shadowroot/mysteryoflimbo/
 
           # --- PASO 2: CONTEO Y VALIDACIÓN ---
           find java_src -name "*.java" > java_files.txt
           TOTAL_FILES=$(cat java_files.txt | wc -l)
-          echo "Total de archivos Java para compilar: $TOTAL_FILES"
+          echo "Total de archivos Java encontrados: $TOTAL_FILES"
           
-          if [ "$TOTAL_FILES" -le 12 ]; then
-            echo "❌ ERROR CRÍTICO: No pudimos recuperar las clases de SDL2."
-            echo "Listado de archivos encontrados (Diagnóstico):"
+          # SDL2 estable suele tener entre 18 y 22 archivos .java
+          if [ "$TOTAL_FILES" -lt 15 ]; then
+            echo "❌ ERROR: El conteo de archivos ($TOTAL_FILES) sigue siendo bajo para SDL2."
             cat java_files.txt
             exit 1
           fi
 
-          # Compilación con reporte de errores detallado
-          javac -d obj -cp $PLATFORM @java_files.txt || (echo "❌ ERROR: Falló javac. Revisa compatibilidad de tipos." && exit 1)
+          echo "✅ Estructura validada. Procediendo a compilación..."
+          javac -d obj -cp $PLATFORM @java_files.txt || (echo "❌ ERROR: Falló javac" && exit 1)
 
           # --- PASO 3: DEX (Sin optimización) ---
           mkdir -p dex_out
