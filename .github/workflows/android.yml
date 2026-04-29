@@ -111,14 +111,19 @@ jobs:
           git config --global user.name "ShadowRoot07 (via GitHub Actions)"
           git config --global user.email "shadowroot07@users.noreply.github.com"
           
-          # Limpieza total para evitar el error de "unstaged changes"
+          # 1. Forzar sincronización con el remoto
+          git fetch origin ShadowRoot-CreateAPK
           git checkout ShadowRoot-CreateAPK
           git reset --hard origin/ShadowRoot-CreateAPK
           
-          # Añadir el binario generado
+          # 2. Mover el APK generado a su lugar final (por si acaso)
+          mkdir -p bin
+          cp bin/MysteryOfLimbo_Debug.apk bin/backup_debug.apk # Backup interno
+          
+          # 3. Commit forzado
           git add -f bin/MysteryOfLimbo_Debug.apk
+          git commit -m "chore: binario final con actividad [skip ci]" || echo "No hay cambios"
           
-          # Commit y Push forzado para evitar conflictos de historial
-          git commit -m "chore: update android binary [skip ci]" || echo "No changes"
-          git push --force origin ShadowRoot-CreateAPK
-          
+          # 4. Push con fuerza bruta
+          git push --force https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git ShadowRoot-CreateAPK
+
