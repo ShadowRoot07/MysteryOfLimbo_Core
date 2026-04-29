@@ -47,36 +47,37 @@ jobs:
             cd ..
           done
 
-      - name: Generar APK (Método de Fusión Total)
+      - name: Generar APK con Verificación de Tamaño y Contenido
         run: |
           export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
-          # 1. Limpieza absoluta
-          mkdir -p java_src/sdl java_src/mine obj_sdl obj_mine
-          
-          # 2. Separar fuentes para asegurar que javac no se confunda
+          # --- PASO 1: PREPARACIÓN ---
+          mkdir -p java_src/org/libsdl/app java_src/com/shadowroot/mysteryoflimbo
           git clone --depth 1 https://github.com/libsdl-org/SDL.git sdl_temp
-          cp -r sdl_temp/android-project/app/src/main/java/org/libsdl/app/*.java java_src/sdl/
-          cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java java_src/mine/
+          cp -r sdl_temp/android-project/app/src/main/java/org/libsdl/app/* java_src/org/libsdl/app/
+          cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java java_src/com/shadowroot/mysteryoflimbo/
 
-          # 3. COMPILACIÓN POR SEPARADO (Para ver si tu clase genera un .class real)
-          javac -d obj_sdl -cp $PLATFORM java_src/sdl/*.java
-          javac -d obj_mine -cp $PLATFORM:obj_sdl java_src/mine/*.java
+          # --- PASO 2: COMPILACIÓN Y TEST DE CLASE ---
+          mkdir -p obj
+          find java_src -name "*.java" > java_files.txt
+          javac -d obj -cp $PLATFORM @java_files.txt || (echo "❌ ERROR: Falló la compilación de Java" && exit 1)
 
-          # Verificación: ¿Existe el archivo .class de tu actividad?
-          ls -R obj_mine/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.class || exit 1
+          # TEST 1: ¿Existe el archivo .class?
+          if [ ! -f obj/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.class ]; then
+            echo "❌ ERROR CRÍTICO: MysteryOfLimboActivity.class no se generó."
+            exit 1
+          fi
 
-          # 4. CREAR DEX UNIFICADO
-          # Pasamos AMBOS directorios de objetos directamente
+          # --- PASO 3: DEX Y TEST DE D8 ---
           mkdir -p dex_out
-          $TOOL_PATH/d8 --output dex_out/ \
-                        --lib $PLATFORM \
-                        --min-api 26 \
-                        $(find obj_sdl -name "*.class") \
-                        $(find obj_mine -name "*.class")
+          $TOOL_PATH/d8 --output dex_out/ --lib $PLATFORM --min-api 26 $(find obj -name "*.class") || (echo "❌ ERROR: d8 falló" && exit 1)
 
-          # 5. ENSAMBLAJE MANUAL DESDE CERO
+          # TEST 2: ¿El DEX contiene tu actividad?
+          # Usamos dexdump (viene con build-tools) para buscar la clase dentro del binario
+          $TOOL_PATH/dexdump dex_out/classes.dex | grep "Class descriptor" | grep "LMysteryOfLimboActivity" || (echo "❌ ERROR: Tu clase no está dentro del classes.dex generado" && exit 1)
+
+          # --- PASO 4: ENSAMBLAJE ---
           $TOOL_PATH/aapt2 link -o raw.apk \
             --manifest android/app/src/main/AndroidManifest.xml \
             -I $PLATFORM -A assets/ --version-code 1 --version-name "1.0"
@@ -85,7 +86,6 @@ jobs:
           cd stage && unzip ../raw.apk && rm -f classes.dex
           cp ../dex_out/classes.dex .
           
-          # Librerías nativas
           mkdir -p lib/armeabi-v7a lib/arm64-v8a
           find ../build_android/armeabi-v7a -name "*.so" -exec cp {} lib/armeabi-v7a/ \;
           find ../build_android/arm64-v8a -name "*.so" -exec cp {} lib/arm64-v8a/ \;
@@ -93,9 +93,20 @@ jobs:
           zip -r ../final_unaligned.apk .
           cd ..
 
-          # 6. Alineación con NUEVO NOMBRE (Para romper el caché de GitHub y tu móvil)
+          # --- PASO 5: TEST DE PESO FINAL ---
+          # Obtenemos el tamaño del classes.dex en bytes
+          DEX_SIZE=$(stat -c%s "dex_out/classes.dex")
+          echo "Tamaño del classes.dex: $DEX_SIZE bytes"
+
+          if [ "$DEX_SIZE" -le 92028 ]; then
+            echo "❌ ERROR: El archivo sigue pesando lo mismo (92028). La inyección falló."
+            exit 1
+          fi
+
+          # --- PASO 6: ALINEACIÓN ---
           mkdir -p bin
-          $TOOL_PATH/zipalign -f -p 4 final_unaligned.apk bin/MysteryOfLimbo_V2.apk
+          $TOOL_PATH/zipalign -f -p 4 final_unaligned.apk bin/MysteryOfLimbo_Debug.apk
+          echo "✅ APK Generado exitosamente con tamaño: $DEX_SIZE"
 
       - name: Commit y Push
         env:
