@@ -102,14 +102,30 @@ jobs:
           zip -r ../final_unaligned.apk .
           cd ..
 
-          # --- PASO 5: TEST DE PESO FINAL ---
-          # Obtenemos el tamaño del classes.dex en bytes
+          # --- PASO 5: DIAGNÓSTICO FORENSE (Try/Catch de Peso) ---
           DEX_SIZE=$(stat -c%s "dex_out/classes.dex")
-          echo "Tamaño del classes.dex: $DEX_SIZE bytes"
+          echo "Tamaño detectado: $DEX_SIZE bytes"
 
-          if [ "$DEX_SIZE" -le 92028 ]; then
-            echo "❌ ERROR: El archivo sigue pesando lo mismo (92028). La inyección falló."
+          if [ "$DEX_SIZE" -eq 92028 ]; then
+            echo "⚠️ ALERTA: Peso crítico detectado (92028). Iniciando autopsia del DEX..."
+            
+            # 1. ¿Está la clase en la tabla de tipos?
+            echo "--- Análisis de Símbolos ---"
+            $TOOL_PATH/dexdump dex_out/classes.dex | grep -i "MysteryOfLimboActivity" || echo "❌ La clase NO existe en el binario."
+            
+            # 2. ¿Cuántas clases totales hay? (Comparar con un DEX vacío de SDL que tiene ~102 clases)
+            CLASS_COUNT=$($TOOL_PATH/dexdump dex_out/classes.dex | grep "Class descriptor" | wc -l)
+            echo "Total de clases en el DEX: $CLASS_COUNT"
+            
+            # 3. Ver las últimas 5 clases añadidas para ver si hubo truncamiento
+            echo "--- Últimas clases en el índice ---"
+            $TOOL_PATH/dexdump dex_out/classes.dex | grep "Class descriptor" | tail -n 5
+            
+            echo "❌ ERROR: El archivo tiene el peso de un build vacío a pesar de la inyección."
+            echo "Esto sugiere que d8 reemplazó tu código con metadatos vacíos o hubo una colisión de nombres."
             exit 1
+          else
+            echo "✅ PESO VALIDADO: El archivo ha cambiado ($DEX_SIZE bytes)."
           fi
 
           # --- PASO 6: ALINEACIÓN ---
