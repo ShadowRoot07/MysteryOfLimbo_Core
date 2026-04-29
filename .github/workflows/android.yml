@@ -62,32 +62,31 @@ jobs:
           
           # 3. Mover TU actividad (Asegurando que la ruta coincida con el 'package')
           cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java java_src/com/shadowroot/mysteryoflimbo/
-
-          # 4. Compilar usando una lista de archivos (Evita errores de ruta)
+          
+          # 4. Compilar TODO
           mkdir -p obj
           find java_src -name "*.java" > sources.txt
-          echo "Compilando los siguientes archivos:"
-          cat sources.txt
-          
-          # Compilamos TODO. Si hay un solo error aquí, el build se detendrá.
           javac -d obj -cp $PLATFORM @sources.txt
 
-          # 5. Generar DEX (Forzamos a d8 a procesar TODAS las clases en 'obj')
-          mkdir -p bin_dex
-          # El truco aquí es pasar el directorio 'obj' directamente para que d8 encuentre los paquetes
-          $TOOL_PATH/d8 --output bin_dex/ --lib $PLATFORM --min-api 26 $(find obj -name "*.class")
-          
-          # 6. Vincular con AAPT2
-          mkdir -p assets
-          $TOOL_PATH/aapt2 link -o base.apk \
-            --manifest android/app/src/main/AndroidManifest.xml \
-            -I $PLATFORM \
-            -A assets/ \
-            --version-code 1 --version-name "1.0"
+          # 5. CREAR JAR INTERMEDIO (Esto obliga a incluir tu actividad)
+          # Nos metemos a la carpeta para que la estructura interna sea correcta
+          cd obj
+          jar cvf ../project_classes.jar .
+          cd ..
 
-          # 7. Inyectar DEX en la RAÍZ (Garantizado)
-          # Extraemos el dex si d8 lo sacó como carpeta o archivo
-          cp bin_dex/classes.dex . || cp bin_dex/obj/classes.dex . || true
+          # 6. Convertir JAR a DEX
+          mkdir -p bin_dex
+          $TOOL_PATH/d8 --output bin_dex/ \
+                        --lib $PLATFORM \
+                        --min-api 26 \
+                        project_classes.jar
+          
+          # 7. Inyectar DEX con "Fuerza Bruta"
+          # Primero limpiamos cualquier residuo en el APK base
+          zip -d base.apk classes.dex || true
+          
+          # Inyectamos el nuevo
+          cp bin_dex/classes.dex .
           zip -g base.apk classes.dex
 
           # 8. Inyectar TODAS las librerías nativas (SDL + Tu binario)
