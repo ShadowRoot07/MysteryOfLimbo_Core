@@ -52,34 +52,39 @@ jobs:
           export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
-          # --- PASO 1: PREPARACIÓN (Copia Directa y Blindada) ---
+
+          # --- PASO 1: PREPARACIÓN (Extracción de Núcleo SDL) ---
           rm -rf java_src obj dex_out sdl_temp
           mkdir -p java_src/com/shadowroot/mysteryoflimbo obj dex_out
 
-          # Clonar SDL fresco
+          # Clonar SDL (Rama main para tener lo último)
           git clone --depth 1 https://github.com/libsdl-org/SDL.git sdl_temp
           
-          # COPIA DIRECTA: 
-          # Sabemos que los archivos están en: sdl_temp/android-project/app/src/main/java/org
-          # Los movemos a java_src
+          # LA CLAVE: SDL tiene los archivos Java en dos lugares. 
+          # 1. Los básicos en android-project
+          # 2. Los de soporte en src/main/java (si es SDL3) o en la estructura de src.
+          
+          echo "Copiando archivos base..."
           cp -r sdl_temp/android-project/app/src/main/java/org java_src/
+          
+          echo "Buscando y fusionando archivos de soporte adicionales..."
+          # Este comando busca CUALQUIER archivo .java dentro de SDL que pertenezca al paquete org.libsdl.app
+          # y lo mete en nuestra carpeta de compilación sin duplicar.
+          find sdl_temp -name "*.java" -path "*/org/libsdl/app/*" -exec cp -n {} java_src/org/libsdl/app/ \;
           
           # Tu actividad personalizada
           cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java java_src/com/shadowroot/mysteryoflimbo/
 
           # --- PASO 2: COMPILACIÓN TOTAL ---
-          # Generamos la lista de archivos
           find java_src -name "*.java" > java_files.txt
-          
           echo "Archivos Java encontrados para compilar:"
           TOTAL_FILES=$(cat java_files.txt | wc -l)
           echo "Total: $TOTAL_FILES"
           
           # Verificamos si logramos romper la barrera de los 12
-          if [ "$TOTAL_FILES" -le 12 ]; then
-            echo "❌ ERROR CRÍTICO: Seguimos detectando solo 12 archivos o menos."
-            echo "Contenido de java_src:"
-            ls -R java_src
+          if [ "$TOTAL_FILES" -le 15 ]; then
+            echo "❌ ERROR: Seguimos con muy pocos archivos. Intentando búsqueda desesperada..."
+            find sdl_temp -name "*.java" | head -n 20
             exit 1
           fi
 
