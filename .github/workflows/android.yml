@@ -52,52 +52,50 @@ jobs:
           export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
-          # 1. Crear estructura física IDÉNTICA a los paquetes
-          mkdir -p java_src/org/libsdl/app
-          mkdir -p java_src/com/shadowroot/mysteryoflimbo
-
-          # 2. Descargar SDL y mover SOLO el código fuente
+          # 1. Preparar Fuentes
+          mkdir -p java_src/org/libsdl/app java_src/com/shadowroot/mysteryoflimbo
           git clone --depth 1 https://github.com/libsdl-org/SDL.git sdl_temp
           cp -r sdl_temp/android-project/app/src/main/java/org/libsdl/app/* java_src/org/libsdl/app/
-          
-          # 3. Mover TU actividad (Asegurando que la ruta coincida con el 'package')
           cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java java_src/com/shadowroot/mysteryoflimbo/
-          
-          # 4. Compilar TODO
+
+          # 2. Compilar y crear JAR
           mkdir -p obj
           find java_src -name "*.java" > sources.txt
           javac -d obj -cp $PLATFORM @sources.txt
+          cd obj && jar cvf ../project.jar . && cd ..
 
-          # 5. CREAR JAR INTERMEDIO (Esto obliga a incluir tu actividad)
-          # Nos metemos a la carpeta para que la estructura interna sea correcta
-          cd obj
-          jar cvf ../project_classes.jar .
+          # 3. Convertir JAR a DEX (Garantizado)
+          mkdir -p dex_out
+          $TOOL_PATH/d8 --output dex_out/ --lib $PLATFORM --min-api 26 project.jar
+          
+          # 4. Vincular Recursos (Solo recursos, sin código)
+          $TOOL_PATH/aapt2 link -o raw_base.apk \
+            --manifest android/app/src/main/AndroidManifest.xml \
+            -I $PLATFORM \
+            -A assets/ \
+            --version-code 1 --version-name "1.0"
+
+          # 5. ENSAMBLAJE MANUAL (Aquí matamos el bug)
+          mkdir -p apk_stage
+          cd apk_stage
+          unzip ../raw_base.apk
+          # Borramos CUALQUIER dex que haya puesto aapt2
+          rm -f classes.dex
+          # Copiamos nuestro DEX real
+          cp ../dex_out/classes.dex .
+          
+          # Añadimos las librerías nativas en la ruta correcta
+          mkdir -p lib/armeabi-v7a lib/arm64-v8a
+          find ../build_android/armeabi-v7a -name "*.so" -exec cp {} lib/armeabi-v7a/ \;
+          find ../build_android/arm64-v8a -name "*.so" -exec cp {} lib/arm64-v8a/ \;
+
+          # Re-empaquetamos todo desde cero
+          zip -r ../unaligned.apk .
           cd ..
 
-          # 6. Convertir JAR a DEX
-          mkdir -p bin_dex
-          $TOOL_PATH/d8 --output bin_dex/ \
-                        --lib $PLATFORM \
-                        --min-api 26 \
-                        project_classes.jar
-          
-          # 7. Inyectar DEX con "Fuerza Bruta"
-          # Primero limpiamos cualquier residuo en el APK base
-          zip -d base.apk classes.dex || true
-          
-          # Inyectamos el nuevo
-          cp bin_dex/classes.dex .
-          zip -g base.apk classes.dex
-
-          # 8. Inyectar TODAS las librerías nativas (SDL + Tu binario)
-          mkdir -p lib/armeabi-v7a lib/arm64-v8a
-          find build_android/armeabi-v7a -name "*.so" -exec cp {} lib/armeabi-v7a/ \;
-          find build_android/arm64-v8a -name "*.so" -exec cp {} lib/arm64-v8a/ \;
-          zip -r base.apk lib/
-
-          # 9. Alineación final
+          # 6. Alineación final
           mkdir -p bin
-          $TOOL_PATH/zipalign -f -p 4 base.apk bin/MysteryOfLimbo_Debug.apk
+          $TOOL_PATH/zipalign -f -p 4 unaligned.apk bin/MysteryOfLimbo_Debug.apk
 
       - name: Commit y Push del APK al Repo
         env:
