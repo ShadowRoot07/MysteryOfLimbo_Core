@@ -47,57 +47,58 @@ jobs:
             cd ..
           done
 
-      - name: Generar APK - Estrategia 3 (Skeleton Injection)
+      - name: Generar APK - Estrategia 1 (Deep Search)
         run: |
           export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
-          # --- PASO 1: LIMPIEZA ---
-          rm -rf java_src obj dex_out
-          mkdir -p java_src/org/libsdl/app java_src/com/shadowroot/mysteryoflimbo obj dex_out
+          # --- PASO 1: LIMPIEZA Y CLONADO FRESCO ---
+          rm -rf java_src obj dex_out sdl_temp
+          mkdir -p java_src/com/shadowroot/mysteryoflimbo obj dex_out
+          
+          echo "📥 Clonando rama SDL2 para exploración..."
+          git clone --branch SDL2 --depth 1 https://github.com/libsdl-org/SDL.git sdl_temp
 
-          echo "📥 Descargando Set de Soporte SDL2..."
-          # Lista de archivos críticos que suelen faltar en las descargas recortadas
-          FILES=(
-            "SDL.java" "SDLActivity.java" "SDLAudioManager.java" "SDLControllerManager.java"
-            "SDLJoystickHandler.java" "SDLSurface.java" "SDLSensorHandler.java"
-            "HIDDevice.java" "HIDDeviceManager.java" "HIDDeviceUSB.java" "HIDDeviceBLESteamController.java"
-          )
+          # --- PASO 2: LA RED DE ARRASTRE POR CONTENIDO ---
+          echo "🔍 Buscando archivos que contengan el paquete 'org.libsdl.app'..."
+          mkdir -p java_src/org/libsdl/app
 
-          BASE_URL="https://raw.githubusercontent.com/libsdl-org/SDL/SDL2/android-project/app/src/main/java/org/libsdl/app"
+          # Buscamos todos los archivos .java y filtramos los que tengan el package de SDL
+          # Luego los copiamos a nuestra carpeta de construcción
+          find sdl_temp -name "*.java" -exec grep -l "package org.libsdl.app" {} + | xargs -I {} cp {} java_src/org/libsdl/app/
 
-          for file in "${FILES[@]}"; do
-            echo "Descargando $file..."
-            curl -sL "$BASE_URL/$file" -o "java_src/org/libsdl/app/$file"
-          done
-
-          # Inyectamos tu actividad
+          # Inyectamos tu actividad personalizada
           cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java java_src/com/shadowroot/mysteryoflimbo/
 
-          # --- PASO 2: CONTEO Y VALIDACIÓN ---
+          # --- PASO 3: DIAGNÓSTICO Y CONTEO ---
           find java_src -name "*.java" > java_files.txt
           TOTAL_FILES=$(cat java_files.txt | wc -l)
-          
-          echo "--- 📋 LISTADO DE ARCHIVOS OBTENIDOS ---"
-          cat java_files.txt
-          echo "-------------------------------------------"
-          echo "Total de archivos Java: $TOTAL_FILES"
 
-          # Ahora el mínimo es 12 (11 de SDL + la tuya)
-          if [ "$TOTAL_FILES" -lt 12 ]; then
-            echo "❌ ERROR: Falló la descarga de los archivos individuales."
+          echo "--- 📋 RESULTADOS DE LA EXPLORACIÓN ---"
+          if [ "$TOTAL_FILES" -gt 1 ]; then
+            cat java_files.txt
+          else
+            echo "❌ No se encontró ningún archivo con el patrón de paquete org.libsdl.app"
+            # Log de emergencia: ¿Qué hay en la carpeta de android del repo?
+            find sdl_temp -type d -name "android" -o -name "java" | head -n 5
+          fi
+          echo "-------------------------------------------"
+          echo "Total de archivos detectados: $TOTAL_FILES"
+
+          # --- PASO 4: INTENTO DE COMPILACIÓN ---
+          if [ "$TOTAL_FILES" -lt 5 ]; then
+            echo "❌ ERROR: Insuficientes archivos para una estructura SDL válida."
             exit 1
           fi
 
-          echo "✅ Esqueleto inyectado. Compilando..."
+          echo "✅ Iniciando javac con los archivos encontrados..."
           javac -d obj -cp $PLATFORM @java_files.txt || (echo "❌ ERROR: Falló javac" && exit 1)
 
-          # --- PASO 3: DEX ---
+          # --- PASO 5: DEX ---
           find obj -name "*.class" > class_files.txt
           $TOOL_PATH/d8 --output dex_out/ --lib $PLATFORM --min-api 26 @class_files.txt
-
-          DEX_SIZE=$(stat -c%s "dex_out/classes.dex")
-          echo "✅ Tamaño final del DEX: $DEX_SIZE bytes"
+          
+          echo "✅ Proceso completado. Tamaño DEX: $(stat -c%s dex_out/classes.dex) bytes"
 
       - name: Commit y Push
         env:
