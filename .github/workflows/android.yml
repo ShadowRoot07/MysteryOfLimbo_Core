@@ -99,48 +99,41 @@ jobs:
           $TOOL_PATH/d8 --output dex_out/ --lib $PLATFORM --min-api 26 @class_files.txt
           echo "✅ Proceso DEX completado."
 
-          # --- PASO 6: ENSAMBLAJE PROFESIONAL CON AAPT ---
-          echo "📦 Compilando Manifest y empaquetando recursos..."
+          # --- PASO 6: ENSAMBLAJE QUIRÚRGICO ---
+          echo "📦 Ensamblando con alineación de librerías..."
           mkdir -p bin
           
-          # 1. Usamos aapt para crear el APK base con el Manifest en formato binario
-          # Esto soluciona el error 'No XML chunk in file'
+          # 1. Base con Manifest binario
           $TOOL_PATH/aapt package -f -M android/app/src/main/AndroidManifest.xml \
             -I $PLATFORM \
             -F bin/MysteryOfLimbo_V2.apk
 
-          # 2. Inyectamos el classes.dex en la RAÍZ del APK
-          # Entramos a la carpeta para que zip no incluya el nombre de la carpeta 'dex_out'
+          # 2. Inyectar DEX (Compresión normal está bien aquí)
           cd dex_out && zip -ur9 ../bin/MysteryOfLimbo_V2.apk classes.dex && cd ..
 
-          # 3. Preparamos e inyectamos las librerías nativas (.so)
-          # Mantenemos la estructura lib/<abi>/libreria.so
+          # 3. Inyectar Librerías SIN COMPRESIÓN (-0) y en la ruta correcta
+          # Esto es vital para que zipalign no de error y el SO las cargue rápido
           mkdir -p lib/armeabi-v7a lib/arm64-v8a
-          
-          # Copiamos TODAS las librerías necesarias (SDL2, Mixer, y tu Main)
-          # Asumimos que las de SDL están en la ruta de compilación o proyecto
           cp build_android/armeabi-v7a/libmain.so lib/armeabi-v7a/
           cp build_android/arm64-v8a/libmain.so lib/arm64-v8a/
           
-          # Buscamos y copiamos las dependencias de SDL2 que ya existían (si están en el repo)
-          find . -name "libSDL2.so" -path "*/armeabi-v7a/*" -exec cp {} lib/armeabi-v7a/ \;
-          find . -name "libSDL2.so" -path "*/arm64-v8a/*" -exec cp {} lib/arm64-v8a/ \;
-          find . -name "libSDL2_mixer.so" -path "*/armeabi-v7a/*" -exec cp {} lib/armeabi-v7a/ \;
-          find . -name "libSDL2_mixer.so" -path "*/arm64-v8a/*" -exec cp {} lib/arm64-v8a/ \;
+          # Rescatar dependencias de SDL si existen
+          find . -name "libSDL2*.so" -path "*/armeabi-v7a/*" -exec cp {} lib/armeabi-v7a/ \;
+          find . -name "libSDL2*.so" -path "*/arm64-v8a/*" -exec cp {} lib/arm64-v8a/ \;
 
-          zip -ur9 bin/MysteryOfLimbo_V2.apk lib/
+          # USAMOS -0 (Cero compresión) para las carpetas lib/
+          zip -ur0 bin/MysteryOfLimbo_V2.apk lib/
 
-          # 4. Inyectamos Assets (si existen)
+          # 4. Inyectar Assets
           if [ -d "assets" ]; then
             zip -ur9 bin/MysteryOfLimbo_V2.apk assets/
           fi
 
-          # --- PASO 7: ALINEACIÓN FINAL ---
-          echo "⚖️ Alineando APK..."
+          # --- PASO 7: ALINEACIÓN TOTAL ---
+          echo "⚖️ Alineando a 4 bytes (y 4096 para .so)..."
+          # -p asegura que las librerías .so compartidas se alineen a páginas de memoria
           $TOOL_PATH/zipalign -f -p 4 bin/MysteryOfLimbo_V2.apk bin/MysteryOfLimbo_V2_final.apk
           mv bin/MysteryOfLimbo_V2_final.apk bin/MysteryOfLimbo_V2.apk
-
-          echo "✅ APK generado correctamente: bin/MysteryOfLimbo_V2.apk"
 
       - name: Commit y Push
         env:
