@@ -47,55 +47,57 @@ jobs:
             cd ..
           done
 
-      - name: Generar APK - Estrategia 2 (Git Precision)
+      - name: Generar APK - Estrategia 3 (Skeleton Injection)
         run: |
           export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
           # --- PASO 1: LIMPIEZA ---
-          rm -rf java_src obj dex_out sdl_temp
-          mkdir -p java_src/com/shadowroot/mysteryoflimbo obj dex_out
+          rm -rf java_src obj dex_out
+          mkdir -p java_src/org/libsdl/app java_src/com/shadowroot/mysteryoflimbo obj dex_out
 
-          echo "📥 Clonando SDL (Modo Espejo)..."
-          # Clonamos solo la rama de SDL2 para ahorrar tiempo y espacio
-          git clone --branch SDL2 --depth 1 https://github.com/libsdl-org/SDL.git sdl_temp
+          echo "📥 Descargando Set de Soporte SDL2..."
+          # Lista de archivos críticos que suelen faltar en las descargas recortadas
+          FILES=(
+            "SDL.java" "SDLActivity.java" "SDLAudioManager.java" "SDLControllerManager.java"
+            "SDLJoystickHandler.java" "SDLSurface.java" "SDLSensorHandler.java"
+            "HIDDevice.java" "HIDDeviceManager.java" "HIDDeviceUSB.java" "HIDDeviceBLESteamController.java"
+          )
 
-          echo "🔍 Verificando ubicación real de los archivos Java..."
-          # Buscamos la ruta exacta donde residen los archivos en esta rama
-          SDL_JAVA_PATH=$(find sdl_temp -type d -path "*/org/libsdl/app" | head -n 1)
-          echo "Ruta encontrada: $SDL_JAVA_PATH"
+          BASE_URL="https://raw.githubusercontent.com/libsdl-org/SDL/SDL2/android-project/app/src/main/java/org/libsdl/app"
 
-          if [ -z "$SDL_JAVA_PATH" ]; then
-            echo "❌ ERROR: No se encontró la ruta org/libsdl/app en la rama SDL2."
-            exit 1
-          fi
+          for file in "${FILES[@]}"; do
+            echo "Descargando $file..."
+            curl -sL "$BASE_URL/$file" -o "java_src/org/libsdl/app/$file"
+          done
 
-          # --- PASO 2: COPIA INTEGRAL ---
-          cp -r "$SDL_JAVA_PATH/." java_src/
-          
           # Inyectamos tu actividad
           cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java java_src/com/shadowroot/mysteryoflimbo/
 
-          # --- PASO 3: CONTEO Y VALIDACIÓN ---
+          # --- PASO 2: CONTEO Y VALIDACIÓN ---
           find java_src -name "*.java" > java_files.txt
           TOTAL_FILES=$(cat java_files.txt | wc -l)
           
-          echo "--- 📋 LISTADO DE ARCHIVOS ENCONTRADOS ---"
+          echo "--- 📋 LISTADO DE ARCHIVOS OBTENIDOS ---"
           cat java_files.txt
           echo "-------------------------------------------"
           echo "Total de archivos Java: $TOTAL_FILES"
 
-          if [ "$TOTAL_FILES" -lt 18 ]; then
-            echo "❌ ERROR: Seguimos con pocos archivos ($TOTAL_FILES). La rama SDL2 está incompleta."
+          # Ahora el mínimo es 12 (11 de SDL + la tuya)
+          if [ "$TOTAL_FILES" -lt 12 ]; then
+            echo "❌ ERROR: Falló la descarga de los archivos individuales."
             exit 1
           fi
 
-          echo "✅ Estructura recuperada. Compilando..."
+          echo "✅ Esqueleto inyectado. Compilando..."
           javac -d obj -cp $PLATFORM @java_files.txt || (echo "❌ ERROR: Falló javac" && exit 1)
 
-          # --- PASO 4: DEX ---
+          # --- PASO 3: DEX ---
           find obj -name "*.class" > class_files.txt
           $TOOL_PATH/d8 --output dex_out/ --lib $PLATFORM --min-api 26 @class_files.txt
+
+          DEX_SIZE=$(stat -c%s "dex_out/classes.dex")
+          echo "✅ Tamaño final del DEX: $DEX_SIZE bytes"
 
       - name: Commit y Push
         env:
