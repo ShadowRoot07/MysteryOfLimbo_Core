@@ -94,11 +94,35 @@ jobs:
           echo "✅ Iniciando javac con los archivos encontrados..."
           javac -d obj -cp $PLATFORM @java_files.txt || (echo "❌ ERROR: Falló javac" && exit 1)
 
-          # --- PASO 5: DEX ---
+          # --- PASO 5: DEX (Ya lo tienes, solo asegúrate que termine así) ---
           find obj -name "*.class" > class_files.txt
           $TOOL_PATH/d8 --output dex_out/ --lib $PLATFORM --min-api 26 @class_files.txt
+          echo "✅ Proceso DEX completado."
+
+          # --- PASO 6: ENSAMBLAJE DEL APK (NUEVO) ---
+          echo "📦 Ensamblando APK final..."
+          mkdir -p bin
           
-          echo "✅ Proceso completado. Tamaño DEX: $(stat -c%s dex_out/classes.dex) bytes"
+          # 1. Creamos un APK base (básicamente un ZIP)
+          # NOTA: Necesitas tener un AndroidManifest.xml en tu carpeta 'android/'
+          cp android/app/src/main/AndroidManifest.xml .
+          
+          # Usamos zip para empaquetar todo. 
+          # Estructura: classes.dex + lib/ + AndroidManifest.xml
+          zip -r9 bin/MysteryOfLimbo_V2.apk AndroidManifest.xml
+          cd dex_out && zip -ur9 ../bin/MysteryOfLimbo_V2.apk classes.dex && cd ..
+          
+          # Añadimos las librerías C++ compiladas en el paso anterior
+          mkdir -p lib/armeabi-v7a lib/arm64-v8a
+          cp build_android/armeabi-v7a/libmain.so lib/armeabi-v7a/
+          cp build_android/arm64-v8a/libmain.so lib/arm64-v8a/
+          zip -ur9 bin/MysteryOfLimbo_V2.apk lib/
+          
+          # --- PASO 7: ALINEACIÓN ---
+          $TOOL_PATH/zipalign -f -p 4 bin/MysteryOfLimbo_V2.apk bin/MysteryOfLimbo_V2_aligned.apk
+          mv bin/MysteryOfLimbo_V2_aligned.apk bin/MysteryOfLimbo_V2.apk
+
+          echo "✅ APK generado y alineado en bin/MysteryOfLimbo_V2.apk"
 
       - name: Commit y Push
         env:
