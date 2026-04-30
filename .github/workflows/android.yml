@@ -52,12 +52,13 @@ jobs:
           export TOOL_PATH=$ANDROID_HOME/build-tools/34.0.0
           export PLATFORM=$ANDROID_HOME/platforms/android-34/android.jar
 
-          # --- PASO 1: LIMPIEZA Y CLONADO FRESCO ---
+          # --- PASO 1: LIMPIEZA Y CLONADO SINCRONIZADO ---
           rm -rf java_src obj dex_out sdl_temp
           mkdir -p java_src/com/shadowroot/mysteryoflimbo obj dex_out
-          
-          echo "📥 Clonando rama SDL2 para exploración..."
-          git clone --branch SDL2 --depth 1 https://github.com/libsdl-org/SDL.git sdl_temp
+
+          echo "📥 Clonando SDL release-2.30.2 para sincronizar con C++..."
+          # Cambiamos --branch SDL2 por --branch release-2.30.2
+          git clone --branch release-2.30.2 --depth 1 https://github.com/libsdl-org/SDL.git sdl_temp
 
           # --- PASO 2: LA RED DE ARRASTRE POR CONTENIDO ---
           echo "🔍 Buscando archivos que contengan el paquete 'org.libsdl.app'..."
@@ -66,6 +67,10 @@ jobs:
           # Buscamos todos los archivos .java y filtramos los que tengan el package de SDL
           # Luego los copiamos a nuestra carpeta de construcción
           find sdl_temp -name "*.java" -exec grep -l "package org.libsdl.app" {} + | xargs -I {} cp {} java_src/org/libsdl/app/
+
+          echo "🔍 Verificando versión del código Java descargado..."
+          grep "SDL_MAJOR_VERSION =" java_src/org/libsdl/app/SDLActivity.java -A 2
+
 
           # Inyectamos tu actividad personalizada
           cp android/app/src/main/java/com/shadowroot/mysteryoflimbo/MysteryOfLimboActivity.java java_src/com/shadowroot/mysteryoflimbo/
