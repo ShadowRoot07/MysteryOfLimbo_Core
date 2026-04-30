@@ -15,3 +15,7 @@ El motor funciona bajo un esquema de Game Loop (Bucle de Juego) clásico, donde 
 - WorldProcessor / Physics (La Realidad): Es el juez. Toma la posición que el Player quiere tener y la contrasta con las Platform definidas en el nivel. Si hay una colisión, este componente corrige la posición del jugador para que no atraviese el suelo.
 
 - main.cpp (El Corazón/Orquestador): Es el que mantiene el ritmo. Inicializa SDL, carga las texturas (.bmp), llama a los Update de todos y, finalmente, dibuja todo en el orden correcto (Fondo -> Mundo -> Jugador -> UI).
+
+
+
+hdjdhd
