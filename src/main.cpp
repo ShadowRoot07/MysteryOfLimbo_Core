@@ -15,6 +15,12 @@
 
 #include "elements/EarthSkill.cpp"
 
+#ifdef __ANDROID__
+    const std::string assetPath = "";
+#else
+    const std::string assetPath = "assets/";
+#endif
+
 extern void ProcessWorld(Player& p, std::vector<Platform>& level, std::vector<Enemy>& enemies, std::vector<Projectile>& bullets, float dt);
 extern std::vector<Platform> LoadLevel(const std::string& path, std::vector<Enemy>& enemies);
 
@@ -44,21 +50,20 @@ int main(int argc, char* argv[]) {
     Camera camera(800, 600);
 
     // Precarga de sonidos
-    sfx.LoadSound("jump", "assets/audio/fx/jump.wav");
-    sfx.LoadSound("double_jump", "assets/audio/fx/double_jump.wav");
-    sfx.LoadSound("attack", "assets/audio/fx/attack.wav");
-    sfx.LoadSound("dash", "assets/audio/fx/dash.wav");
-    sfx.LoadSound("earth_skill", "assets/audio/fx/earth.wav");
-    sfx.LoadSound("mark_set", "assets/audio/fx/mark.wav");
-    sfx.LoadSound("teleport", "assets/audio/fx/teleport.wav");
-    sfx.LoadSound("liquid_form", "assets/audio/fx/liquid.wav");
+    sfx.LoadSound("jump", assetPath + "audio/fx/jump.wav");
+    sfx.LoadSound("double_jump", assetPath + "audio/fx/double_jump.wav");
+    sfx.LoadSound("attack", assetPath + "audio/fx/attack.wav");
+    sfx.LoadSound("dash", assetPath + "audio/fx/dash.wav");
+    sfx.LoadSound("earth_skill", assetPath + "audio/fx/earth.wav");
+    sfx.LoadSound("mark_set", assetPath + "audio/fx/mark.wav");
+    sfx.LoadSound("teleport", assetPath + "audio/fx/teleport.wav");
+    sfx.LoadSound("liquid_form", assetPath + "audio/fx/liquid.wav");
 
     player.SetElements(EARTH, DARKNESS);
 
     std::vector<Enemy> enemies;
     std::vector<Projectile> bullets;
-    std::vector<Platform> level = LoadLevel("assets/maps/test_level.txt", enemies);
-
+    std::vector<Platform> level = LoadLevel(assetPath + "maps/test_level.txt", enemies);
     if (!ui.LoadAssets(gfx)) {
         std::cerr << "Advertencia: Fallo al registrar texturas de UI." << std::endl;
     }

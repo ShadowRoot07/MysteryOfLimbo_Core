@@ -12,8 +12,7 @@ public:
     ~ShadowGFX();
 
     // useColorKey ahora es true por defecto y detecta el color automáticamente
-    SDL_Texture* GetTexture(const std::string& id, const std::string& path = "", bool useColorKey = true);
-
+    SDL_Texture* GetTexture(const std::string& id, const std::string& p_path = "", bool useColorKey = true);
     void DrawStatic(const std::string& id, SDL_Rect dest);
     void DrawAnimated(const std::string& id, SDL_Rect dest, int frame, bool flip = false);
 

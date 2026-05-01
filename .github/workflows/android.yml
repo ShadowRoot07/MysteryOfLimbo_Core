@@ -129,8 +129,10 @@ jobs:
           # USAMOS -0 (Cero compresión) para las carpetas lib/
           zip -ur0 bin/MysteryOfLimbo_V2.apk lib/
 
-          # 4. Inyectar Assets
+          # 4. Inyectar Assets (Asegurando que la carpeta interna sea correcta)
           if [ -d "assets" ]; then
+            # Entramos a la carpeta para que en el zip no aparezca "assets/assets/..."
+            # Pero SDL espera que los archivos estén bajo la jerarquía que definimos
             zip -ur9 bin/MysteryOfLimbo_V2.apk assets/
           fi
 

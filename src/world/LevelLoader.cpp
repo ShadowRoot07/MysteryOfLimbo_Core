@@ -1,28 +1,45 @@
 #include <vector>
 #include <string>
-#include <fstream>
-#include <iostream> // Añadido para logs de error
+#include <sstream> 
+#include <iostream>
+#include <SDL.h>   
 #include "world/Platform.h"
 #include "world/Enemy.h"
 
 std::vector<Platform> LoadLevel(const std::string& path, std::vector<Enemy>& enemies) {
     std::vector<Platform> level;
-    std::ifstream file(path);
-    
-    if (!file.is_open()) {
-        std::cerr << "Error: No se pudo abrir el archivo de mapa en: " << path << std::endl;
+    enemies.clear();
+
+    // SDL_RWFromFile: La llave maestra para leer dentro del APK y en Linux
+    SDL_RWops* rw = SDL_RWFromFile(path.c_str(), "rb");
+    if (!rw) {
+        std::cerr << "[LevelLoader] Error SDL: No se pudo abrir " << path << " -> " << SDL_GetError() << std::endl;
         return level;
     }
 
+    // Leer todo el archivo a memoria de forma segura
+    Sint64 size = SDL_RWsize(rw);
+    if (size <= 0) {
+        SDL_RWclose(rw);
+        return level;
+    }
+
+    char* buffer = new char[size + 1];
+    SDL_RWread(rw, buffer, size, 1);
+    buffer[size] = '\0';
+    SDL_RWclose(rw);
+
+    std::string content(buffer);
+    delete[] buffer;
+
+    std::stringstream file(content);
     std::string line;
-    int tileSize = 50; 
+    int tileSize = 50;
     bool parsingMap = false;
     int row = 0;
 
-    enemies.clear();
-
     while (std::getline(file, line)) {
-        // Eliminar posibles caracteres de retorno de carro (\r) de Windows
+        // Limpieza de retornos de carro de Windows (\r)
         if (!line.empty() && line.back() == '\r') line.pop_back();
         if (line.empty()) continue;
 
@@ -30,7 +47,6 @@ std::vector<Platform> LoadLevel(const std::string& path, std::vector<Enemy>& ene
             try {
                 tileSize = std::stoi(line.substr(11));
             } catch (...) {
-                std::cerr << "Error leyendo TILE_SIZE, usando 50 por defecto." << std::endl;
                 tileSize = 50;
             }
         } else if (line.find("MAP_START") != std::string::npos) {
@@ -42,40 +58,46 @@ std::vector<Platform> LoadLevel(const std::string& path, std::vector<Enemy>& ene
         if (parsingMap) {
             for (int col = 0; col < (int)line.length(); col++) {
                 char c = line[col];
-                if (c == ' ' || c == '.') continue; // Ignorar aire
+                if (c == ' ' || c == '.') continue; 
 
                 float x = (float)(col * tileSize);
                 float y = (float)(row * tileSize);
                 Rect r = {x, y, (float)tileSize, (float)tileSize};
 
+                // Lógica de plataformas
                 if (c == '#') {
                     level.push_back({r, NORMAL, 0, "ground_stone"});
                 } else if (c == 'S') {
                     level.push_back({r, SPIKE, 25.0f, "spike_metal"});
-                } else if (c == 'W' || c == 'V' || c == 'T') {
+                } 
+                // Lógica de enemigos (Walker, Flyer, Turret)
+                else if (c == 'W' || c == 'V' || c == 'T') {
                     Enemy e;
-                    // Centramos el enemigo en el tile de 50x50 para que no spawnee en la esquina
                     float offsetX = (tileSize - 32) / 2.0f;
-                    float offsetY = (tileSize - 48); // Pegado al suelo del tile
-                    
+                    float offsetY = (float)(tileSize - 48); 
+
                     e.pos = {x + offsetX, y + offsetY};
                     e.hitbox = {e.pos.x, e.pos.y, 32, 48};
                     e.dir = 1;
-                    e.health = (c == 'T') ? 100.0f : 50.0f; // La torreta tiene más vida
-                    
+                    e.health = (c == 'T') ? 100.0f : 50.0f;
+                    e.timer = 0; // Inicializar timer para torretas
+                    e.detectionRange = 400.0f; // Rango base
+                    e.speedMult = 1.0f;
+                    e.state = PATROL;
+
                     if (c == 'W') e.type = WALKER;
                     else if (c == 'V') e.type = FLYER;
                     else e.type = TURRET;
-                    
+
                     enemies.push_back(e);
                 }
             }
             row++;
         }
     }
-    
-    file.close();
-    std::cout << "Mapa cargado: " << level.size() << " plataformas, " << enemies.size() << " enemigos." << std::endl;
+
+    std::cout << "[LevelLoader] Éxito: " << level.size() << " plataformas y " 
+              << enemies.size() << " enemigos cargados." << std::endl;
     return level;
 }
 

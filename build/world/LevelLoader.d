@@ -1,5 +1,4 @@
 build/world/LevelLoader.o: src/world/LevelLoader.cpp \
-  include/world/Platform.h include/Common.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_main.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_stdinc.h \
@@ -50,4 +49,4 @@ build/world/LevelLoader.o: src/world/LevelLoader.cpp \
   /data/data/com.termux/files/usr/include/SDL2/SDL_version.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_locale.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_misc.h \
-  include/world/Enemy.h
+  include/world/Platform.h include/Common.h include/world/Enemy.h
