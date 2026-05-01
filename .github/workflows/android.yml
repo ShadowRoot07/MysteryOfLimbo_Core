@@ -2,9 +2,9 @@ name: Android Build (Mystery of Limbo)
 
 on:
   push:
-    branches: [ ShadowRoot-CreateAPK ]
+    branches: [ ShadowRoot-DebugTextures ]
   pull_request:
-    branches: [ ShadowRoot-CreateAPK ]
+    branches: [ ShadowRoot-DebugTextures ]
 
 permissions:
   contents: write
