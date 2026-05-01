@@ -2,9 +2,9 @@ name: Android Build (Mystery of Limbo)
 
 on:
   push:
-    branches: [ ShadowRoot-DebugTextures ]
+    branches: [ "ShadowRoot-*" ]  # Esto activará el build en cualquier rama que empiece con ShadowRoot-
   pull_request:
-    branches: [ ShadowRoot-DebugTextures ]
+    branches: [ "ShadowRoot-*" ]
 
 permissions:
   contents: write
@@ -148,7 +148,17 @@ jobs:
         run: |
           git config --global user.name "ShadowRoot07"
           git config --global user.email "shadowroot07@users.noreply.github.com"
+          
+          # Forzamos el fetch para asegurar que conocemos las ramas
+          git fetch origin ${{ github.ref_name }}
+          
           git add bin/MysteryOfLimbo_V2.apk
-          git commit -m "chore: V2 Build con clases separadas [skip ci]" || echo "No changes"
-          git push --force origin ShadowRoot-CreateAPK
+          # Solo hacemos commit si hay cambios reales en el APK
+          if git diff --staged --quiet; then
+            echo "No hay cambios en el APK para subir."
+          else
+            git commit -m "chore: V2 Build [skip ci]"
+            # Empujamos a la rama actual dinámicamente
+            git push --force origin HEAD:${{ github.ref_name }}
+          fi
 
