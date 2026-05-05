@@ -27,35 +27,27 @@ void InputManager::Update() {
 
 void InputManager::HandleRawEvent(SDL_Event& ev, SDL_Renderer* renderer) {
     if (ev.type == SDL_FINGERDOWN || ev.type == SDL_FINGERMOTION || ev.type == SDL_FINGERUP) {
-
-        // 1. Obtenemos el tamaño real de la ventana/buffer de salida
-        int winW, winH;
-        SDL_GetRendererOutputSize(renderer, &winW, &winH);
-
-        // 2. Coordenadas de pantalla físicas
-        float screenX = ev.tfinger.x * (float)winW;
-        float screenY = ev.tfinger.y * (float)winH;
-
-        // 3. Conversión a espacio de juego (800x600)
-        float flx, fly;
-        SDL_RenderWindowToLogical(renderer, (int)screenX, (int)screenY, &flx, &fly);
-
-        int mx = (int)flx;
-        int my = (int)fly;
+        
+        // OPCIÓN 3: Normalización Directa. 
+        // ev.tfinger.x siempre es 0.0 a 1.0, sin importar la resolución del ZTE.
+        int mx = (int)(ev.tfinger.x * 800.0f);
+        int my = (int)(ev.tfinger.y * 600.0f);
 
         SDL_Point p = {mx, my};
         SDL_FingerID fid = ev.tfinger.fingerId;
 
         if (ev.type == SDL_FINGERDOWN || ev.type == SDL_FINGERMOTION) {
+            // Lógica del Joystick
             if (SDL_PointInRect(&p, &joystickArea)) {
                 joystick.isActive = true;
                 joystick.fingerID = fid;
+
                 float centerX = joystickArea.x + (joystickArea.w / 2.0f);
                 float centerY = joystickArea.y + (joystickArea.h / 2.0f);
+
                 joystick.x = (mx - centerX) / (joystickArea.w / 2.0f);
                 joystick.y = (my - centerY) / (joystickArea.h / 2.0f);
 
-                // Clamp para evitar que el valor exceda los límites
                 if (joystick.x > 1.0f) joystick.x = 1.0f;
                 if (joystick.x < -1.0f) joystick.x = -1.0f;
                 if (joystick.y > 1.0f) joystick.y = 1.0f;
@@ -69,15 +61,13 @@ void InputManager::HandleRawEvent(SDL_Event& ev, SDL_Renderer* renderer) {
         }
 
         if (ev.type == SDL_FINGERUP) {
-            // Si soltamos el dedo que controlaba el joystick, lo reseteamos
             if (fid == joystick.fingerID) {
                 joystick.isActive = false;
                 joystick.fingerID = -1;
                 joystick.x = 0;
                 joystick.y = 0;
             }
-            
-            // Reset de botones (usamos la misma colisión para asegurar el área)
+
             if (SDL_PointInRect(&p, &btnZArea)) vJump = false;
             if (SDL_PointInRect(&p, &btnXArea)) vAttack = false;
             if (SDL_PointInRect(&p, &btnFArea)) vDash = false;

@@ -15,19 +15,27 @@ bool UIManager::LoadAssets(ShadowGFX& gfx) {
 }
 
 void UIManager::Render(SDL_Renderer* renderer, ShadowGFX& gfx, const InputManager& input, const Player& player) {
-    // ELIMINADA: La llamada a SDL_RenderSetLogicalSize aquí. 
-    // Ya está definida globalmente en main.cpp.
-
-    // Dibujamos usando las áreas oficiales del InputManager (Sincronización Total)
+    // Dibujamos las texturas
     gfx.DrawStatic("btnZ", input.btnZArea);
     gfx.DrawStatic("btnX", input.btnXArea);
     gfx.DrawStatic("btnF", input.btnFArea);
     gfx.DrawStatic("joyBase", input.joystickArea);
 
-    // Knob centrado perfectamente
     SDL_Point jPos = input.GetJoystickScreenPos();
     SDL_Rect knobRect = { jPos.x - 40, jPos.y - 40, 80, 80 };
     gfx.DrawStatic("joyKnob", knobRect);
+
+    // --- OPCIÓN 5: DEBUG VISUAL DE COLISIÓN ---
+    // Esto dibujará marcos rojos sobre las áreas de toque reales
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); 
+    SDL_RenderDrawRect(renderer, &input.btnZArea);
+    SDL_RenderDrawRect(renderer, &input.btnXArea);
+    SDL_RenderDrawRect(renderer, &input.btnFArea);
+    SDL_RenderDrawRect(renderer, &input.joystickArea);
+    
+    // Dibujar un pequeño punto donde el InputManager cree que está el centro del joystick
+    SDL_RenderDrawLine(renderer, input.joystickArea.x, input.joystickArea.y, 
+                       input.joystickArea.x + input.joystickArea.w, input.joystickArea.y + input.joystickArea.h);
 
     // Barra de vida
     SDL_SetRenderDrawColor(renderer, 40, 40, 40, 255);
