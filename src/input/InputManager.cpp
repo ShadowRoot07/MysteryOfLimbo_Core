@@ -25,33 +25,49 @@ void InputManager::Update() {
     state = SDL_GetKeyboardState(NULL);
 }
 
-void InputManager::HandleRawEvent(SDL_Event& ev) {
+void InputManager::HandleRawEvent(SDL_Event& ev, SDL_Renderer* renderer) {
     if (ev.type == SDL_FINGERDOWN || ev.type == SDL_FINGERMOTION || ev.type == SDL_FINGERUP) {
-        int mx = (int)(ev.tfinger.x * 800);
-        int my = (int)(ev.tfinger.y * 600);
+        
+        // OPCIÓN 3: Normalización Directa. 
+        // ev.tfinger.x siempre es 0.0 a 1.0, sin importar la resolución del ZTE.
+        int mx = (int)(ev.tfinger.x * 800.0f);
+        int my = (int)(ev.tfinger.y * 600.0f);
+
         SDL_Point p = {mx, my};
         SDL_FingerID fid = ev.tfinger.fingerId;
 
         if (ev.type == SDL_FINGERDOWN || ev.type == SDL_FINGERMOTION) {
+            // Lógica del Joystick
             if (SDL_PointInRect(&p, &joystickArea)) {
                 joystick.isActive = true;
                 joystick.fingerID = fid;
-                float centerX = joystickArea.x + 90.0f;
-                float centerY = joystickArea.y + 90.0f;
-                
-                joystick.x = (mx - centerX) / 90.0f;
-                joystick.y = (my - centerY) / 90.0f;
 
-                if(joystick.x > 1.0f) joystick.x = 1.0f; if(joystick.x < -1.0f) joystick.x = -1.0f;
-                if(joystick.y > 1.0f) joystick.y = 1.0f; if(joystick.y < -1.0f) joystick.y = -1.0f;
+                float centerX = joystickArea.x + (joystickArea.w / 2.0f);
+                float centerY = joystickArea.y + (joystickArea.h / 2.0f);
+
+                joystick.x = (mx - centerX) / (joystickArea.w / 2.0f);
+                joystick.y = (my - centerY) / (joystickArea.h / 2.0f);
+
+                if (joystick.x > 1.0f) joystick.x = 1.0f;
+                if (joystick.x < -1.0f) joystick.x = -1.0f;
+                if (joystick.y > 1.0f) joystick.y = 1.0f;
+                if (joystick.y < -1.0f) joystick.y = -1.0f;
             }
+
+            // Detección de Botones
             if (SDL_PointInRect(&p, &btnZArea)) vJump = true;
             if (SDL_PointInRect(&p, &btnXArea)) vAttack = true;
             if (SDL_PointInRect(&p, &btnFArea)) vDash = true;
         }
 
         if (ev.type == SDL_FINGERUP) {
-            if (fid == joystick.fingerID) { joystick.isActive = false; joystick.x = 0; joystick.y = 0; }
+            if (fid == joystick.fingerID) {
+                joystick.isActive = false;
+                joystick.fingerID = -1;
+                joystick.x = 0;
+                joystick.y = 0;
+            }
+
             if (SDL_PointInRect(&p, &btnZArea)) vJump = false;
             if (SDL_PointInRect(&p, &btnXArea)) vAttack = false;
             if (SDL_PointInRect(&p, &btnFArea)) vDash = false;
@@ -60,10 +76,14 @@ void InputManager::HandleRawEvent(SDL_Event& ev) {
 }
 
 SDL_Point InputManager::GetJoystickScreenPos() const {
-    // Calcula la posición visual basándose en el centro del área + el desplazamiento normalizado
-    int centerX = joystickArea.x + 90;
-    int centerY = joystickArea.y + 90;
-    return { (int)(centerX + (joystick.x * 60)), (int)(centerY + (joystick.y * 60)) };
+    float centerX = joystickArea.x + (joystickArea.w / 2.0f);
+    float centerY = joystickArea.y + (joystickArea.h / 2.0f);
+    
+    // El 70.0f es el radio máximo que se moverá visualmente el knob
+    return { 
+        (int)(centerX + (joystick.x * 70.0f)), 
+        (int)(centerY + (joystick.y * 70.0f)) 
+    };
 }
 
 bool InputManager::IsKeyDown(SDL_Scancode k) {

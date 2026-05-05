@@ -1,4 +1,5 @@
 #include "gfx/ShadowAudio.h"
+#include <SDL.h>
 #include <iostream>
 
 ShadowAudio::ShadowAudio() : fallbackSound(nullptr) {}
@@ -22,15 +23,23 @@ bool ShadowAudio::Init() {
 }
 
 void ShadowAudio::LoadSound(const std::string& id, const std::string& path) {
-    // Si ya existe en la caché, no lo cargamos de nuevo
     if (soundCache.count(id)) return;
 
-    Mix_Chunk* chunk = Mix_LoadWAV(path.c_str());
-    if (!chunk) {
-        std::cerr << "[ShadowAudio] Advertencia: No se pudo cargar el archivo en " << path << std::endl;
+    // Usamos RWops para que SDL_mixer pueda leer desde el APK
+    SDL_RWops* rw = SDL_RWFromFile(path.c_str(), "rb");
+    if (!rw) {
+        SDL_Log("[ShadowAudio] ERROR: No se encontró el archivo: %s", path.c_str());
         return;
     }
 
+    // El '1' al final libera automáticamente el rw al terminar de cargar
+    Mix_Chunk* chunk = Mix_LoadWAV_RW(rw, 1);
+    if (!chunk) {
+        SDL_Log("[ShadowAudio] ERROR de Mixer: %s", Mix_GetError());
+        return;
+    }
+
+    SDL_Log("[ShadowAudio] EXITO: Cargado %s", id.c_str());
     soundCache[id] = chunk;
 }
 

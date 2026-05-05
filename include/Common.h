@@ -27,11 +27,11 @@ struct Projectile {
 
 // Rutas centralizadas para que ShadowGFX las use
 namespace Assets {
-    const char* const JOY_BASE = "assets/sprites/ui/joystick_base.bmp";
-    const char* const JOY_KNOB = "assets/sprites/ui/joystick_knob.bmp";
-    const char* const BTN_Z    = "assets/sprites/ui/button_z.bmp";
-    const char* const BTN_X    = "assets/sprites/ui/botonX.bmp";
-    const char* const BTN_F    = "assets/sprites/ui/botonF.bmp";
+    const char* const JOY_BASE = "sprites/ui/joystick_base.bmp";
+    const char* const JOY_KNOB = "sprites/ui/joystick_knob.bmp";
+    const char* const BTN_Z    = "sprites/ui/button_z.bmp";
+    const char* const BTN_X    = "sprites/ui/botonX.bmp";
+    const char* const BTN_F    = "sprites/ui/botonF.bmp";
 }
 
 #endif
