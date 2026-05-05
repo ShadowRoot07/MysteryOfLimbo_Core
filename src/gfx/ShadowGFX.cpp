@@ -26,39 +26,50 @@ SDL_Texture* ShadowGFX::GetTexture(const std::string& id, const std::string& p_p
     if (textureCache.count(id)) return textureCache[id];
 
     if (!p_path.empty()) {
-        // SOLUCIÓN RADICAL: Usamos la función interna directa para saltarnos la macro problemática
-        // SDL_RWFromFile abre el archivo y SDL_LoadBMP_RW lo convierte en superficie.
-        SDL_Surface* surface = SDL_LoadBMP_RW(SDL_RWFromFile(p_path.c_str(), "rb"), 1);
-        
-        if (surface) {
-            if (useColorKey) {
-                Uint32 colorkey;
-                if (SDL_LockSurface(surface) == 0) {
-                    Uint8* pixels = (Uint8*)surface->pixels;
-                    if (surface->format->BytesPerPixel == 1) colorkey = *pixels;
-                    else if (surface->format->BytesPerPixel == 2) colorkey = *(Uint16*)pixels;
-                    else if (surface->format->BytesPerPixel == 3) {
-                        if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
-                            colorkey = pixels[0] << 16 | pixels[1] << 8 | pixels[2];
-                        else
-                            colorkey = pixels[0] | pixels[1] << 8 | pixels[2] << 16;
-                    }
-                    else colorkey = *(Uint32*)pixels;
+        // Log para rastrear qué está intentando cargar el APK
+        SDL_Log("ShadowGFX: Intentando cargar [%s] desde ruta: %s", id.c_str(), p_path.c_str());
 
-                    SDL_UnlockSurface(surface);
-                    SDL_SetColorKey(surface, SDL_TRUE, colorkey);
+        SDL_RWops* rw = SDL_RWFromFile(p_path.c_str(), "rb");
+        if (!rw) {
+            std::string altPath = "assets/" + p_path;
+            rw = SDL_RWFromFile(altPath.c_str(), "rb");
+        }
+
+        if (rw) {
+            SDL_Surface* surface = SDL_LoadBMP_RW(rw, 1);
+            if (surface) {
+                if (useColorKey) {
+                    // Tu lógica de colorkey se mantiene igual...
+                    Uint32 colorkey;
+                    if (SDL_LockSurface(surface) == 0) {
+                        Uint8* pixels = (Uint8*)surface->pixels;
+                        if (surface->format->BytesPerPixel == 1) colorkey = *pixels;
+                        else if (surface->format->BytesPerPixel == 2) colorkey = *(Uint16*)pixels;
+                        else if (surface->format->BytesPerPixel == 3) {
+                            if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
+                                colorkey = pixels[0] << 16 | pixels[1] << 8 | pixels[2];
+                            else
+                                colorkey = pixels[0] | pixels[1] << 8 | pixels[2] << 16;
+                        }
+                        else colorkey = *(Uint32*)pixels;
+                        SDL_UnlockSurface(surface);
+                        SDL_SetColorKey(surface, SDL_TRUE, colorkey);
+                    }
+                }
+
+                SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer, surface);
+                SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+                SDL_FreeSurface(surface);
+
+                if (tex) {
+                    SDL_Log("ShadowGFX: EXITOSO [%s]", id.c_str());
+                    textureCache[id] = tex;
+                    return tex;
                 }
             }
-
-            SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer, surface);
-            SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-            SDL_FreeSurface(surface);
-
-            if (tex) {
-                textureCache[id] = tex;
-                return tex;
-            }
         }
+        // Si llegamos aquí, falló la carga
+        SDL_Log("ShadowGFX: ERROR al cargar %s. SDL_Error: %s", p_path.c_str(), SDL_GetError());
     }
 
     std::cout << "[ShadowGFX] Advertencia: Usando fallback para " << id << std::endl;

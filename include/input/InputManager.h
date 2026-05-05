@@ -18,7 +18,7 @@ public:
     void Update();
     
     // Procesa eventos SDL_tfinger (Touch) y eventos del sistema
-    void HandleRawEvent(SDL_Event& ev);
+    void HandleRawEvent(SDL_Event& ev, SDL_Renderer* renderer);
 
     // Verificación de estados
     bool IsKeyDown(SDL_Scancode key);

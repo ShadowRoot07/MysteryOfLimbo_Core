@@ -10,10 +10,17 @@ std::vector<Platform> LoadLevel(const std::string& path, std::vector<Enemy>& ene
     std::vector<Platform> level;
     enemies.clear();
 
-    // SDL_RWFromFile: La llave maestra para leer dentro del APK y en Linux
+    // Intento 1: Ruta directa (Android / Termux-assets)
     SDL_RWops* rw = SDL_RWFromFile(path.c_str(), "rb");
+    
+    // Intento 2: Fallback para X11 (añadiendo assets/)
     if (!rw) {
-        std::cerr << "[LevelLoader] Error SDL: No se pudo abrir " << path << " -> " << SDL_GetError() << std::endl;
+        std::string altPath = "assets/" + path;
+        rw = SDL_RWFromFile(altPath.c_str(), "rb");
+    }
+
+    if (!rw) {
+        SDL_Log("[LevelLoader] ERROR: Imposible abrir el mapa en %s", path.c_str());
         return level;
     }
 

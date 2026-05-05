@@ -15,11 +15,6 @@
 
 #include "elements/EarthSkill.cpp"
 
-#ifdef __ANDROID__
-    const std::string assetPath = "";
-#else
-    const std::string assetPath = "assets/";
-#endif
 
 extern void ProcessWorld(Player& p, std::vector<Platform>& level, std::vector<Enemy>& enemies, std::vector<Projectile>& bullets, float dt);
 extern std::vector<Platform> LoadLevel(const std::string& path, std::vector<Enemy>& enemies);
@@ -33,9 +28,12 @@ int main(int argc, char* argv[]) {
 
     SDL_Window* window = SDL_CreateWindow("Mystery of Limbo", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_SHOWN);
     if (!window) return 1;
-
+    
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!renderer) return 1;
+
+    // Configurar aquí una sola vez
+    SDL_RenderSetLogicalSize(renderer, 800, 600);
 
     // --- SISTEMAS SHADOW ---
     ShadowGFX gfx(renderer);
@@ -50,20 +48,20 @@ int main(int argc, char* argv[]) {
     Camera camera(800, 600);
 
     // Precarga de sonidos
-    sfx.LoadSound("jump", assetPath + "audio/fx/jump.wav");
-    sfx.LoadSound("double_jump", assetPath + "audio/fx/double_jump.wav");
-    sfx.LoadSound("attack", assetPath + "audio/fx/attack.wav");
-    sfx.LoadSound("dash", assetPath + "audio/fx/dash.wav");
-    sfx.LoadSound("earth_skill", assetPath + "audio/fx/earth.wav");
-    sfx.LoadSound("mark_set", assetPath + "audio/fx/mark.wav");
-    sfx.LoadSound("teleport", assetPath + "audio/fx/teleport.wav");
-    sfx.LoadSound("liquid_form", assetPath + "audio/fx/liquid.wav");
+    sfx.LoadSound("jump", "audio/fx/jump.wav");
+    sfx.LoadSound("double_jump", "audio/fx/double_jump.wav");
+    sfx.LoadSound("attack", "audio/fx/attack.wav");
+    sfx.LoadSound("dash", "audio/fx/dash.wav");
+    sfx.LoadSound("earth_skill", "audio/fx/earth.wav");
+    sfx.LoadSound("mark_set", "audio/fx/mark.wav");
+    sfx.LoadSound("teleport", "audio/fx/teleport.wav");
+    sfx.LoadSound("liquid_form", "audio/fx/liquid.wav");
 
     player.SetElements(EARTH, DARKNESS);
 
     std::vector<Enemy> enemies;
     std::vector<Projectile> bullets;
-    std::vector<Platform> level = LoadLevel(assetPath + "maps/test_level.txt", enemies);
+    std::vector<Platform> level = LoadLevel("maps/test_level.txt", enemies);
     if (!ui.LoadAssets(gfx)) {
         std::cerr << "Advertencia: Fallo al registrar texturas de UI." << std::endl;
     }
@@ -81,7 +79,8 @@ int main(int argc, char* argv[]) {
         input.Update();
         while (SDL_PollEvent(&ev)) {
             if (ev.type == SDL_QUIT) running = false;
-            input.HandleRawEvent(ev);
+            // Ahora que el Header y el CPP coinciden, esto ya no dará error
+            input.HandleRawEvent(ev, renderer); 
         }
 
         // Ahora pasamos input Y sfx
