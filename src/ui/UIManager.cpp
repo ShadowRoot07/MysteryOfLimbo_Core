@@ -18,13 +18,14 @@ void UIManager::Render(SDL_Renderer* renderer, ShadowGFX& gfx, const InputManage
     // ESTA LÍNEA ES VITAL: Asegura que 800x600 se mapee a toda la pantalla del móvil
     SDL_RenderSetLogicalSize(renderer, 800, 600);
 
-    // Dibujamos los elementos (coordenadas ahora fijas en 800x600)
-    gfx.DrawStatic("btnZ", { 680, 460, 80, 80 });
-    gfx.DrawStatic("btnX", { 590, 480, 80, 80 });
-    gfx.DrawStatic("btnF", { 680, 370, 80, 80 });
+    // Dibujamos usando las áreas oficiales del InputManager
+    gfx.DrawStatic("btnZ", input.btnZArea);
+    gfx.DrawStatic("btnX", input.btnXArea);
+    gfx.DrawStatic("btnF", input.btnFArea);
+    gfx.DrawStatic("joyBase", input.joystickArea);
 
+    // Knob centrado
     SDL_Point jPos = input.GetJoystickScreenPos();
-    gfx.DrawStatic("joyBase", { 30, 370, 180, 180 });
     gfx.DrawStatic("joyKnob", { jPos.x - 40, jPos.y - 40, 80, 80 });
 
     // Barra de vida

@@ -89,10 +89,14 @@ void InputManager::HandleRawEvent(SDL_Event& ev, SDL_Renderer* renderer) {
 }
 
 SDL_Point InputManager::GetJoystickScreenPos() const {
-    // Calcula la posición visual basándose en el centro del área + el desplazamiento normalizado
-    int centerX = joystickArea.x + 90;
-    int centerY = joystickArea.y + 90;
-    return { (int)(centerX + (joystick.x * 60)), (int)(centerY + (joystick.y * 60)) };
+    float centerX = joystickArea.x + (joystickArea.w / 2.0f);
+    float centerY = joystickArea.y + (joystickArea.h / 2.0f);
+    
+    // El 70.0f es el radio máximo que se moverá visualmente el knob
+    return { 
+        (int)(centerX + (joystick.x * 70.0f)), 
+        (int)(centerY + (joystick.y * 70.0f)) 
+    };
 }
 
 bool InputManager::IsKeyDown(SDL_Scancode k) {
