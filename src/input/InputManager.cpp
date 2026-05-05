@@ -28,17 +28,18 @@ void InputManager::Update() {
 void InputManager::HandleRawEvent(SDL_Event& ev, SDL_Renderer* renderer) {
     if (ev.type == SDL_FINGERDOWN || ev.type == SDL_FINGERMOTION || ev.type == SDL_FINGERUP) {
 
+        // 1. Obtenemos el tamaño real de la ventana/buffer de salida
         int winW, winH;
         SDL_GetRendererOutputSize(renderer, &winW, &winH);
-        
-        int screenX = (int)(ev.tfinger.x * winW);
-        int screenY = (int)(ev.tfinger.y * winH);
 
-        // SDL usa floats para las coordenadas lógicas
-        float flx, fly; 
-        SDL_RenderWindowToLogical(renderer, screenX, screenY, &flx, &fly);
+        // 2. Coordenadas de pantalla físicas
+        float screenX = ev.tfinger.x * (float)winW;
+        float screenY = ev.tfinger.y * (float)winH;
 
-        // Convertimos a int para que tus SDL_Rect y SDL_Point sigan funcionando
+        // 3. Conversión a espacio de juego (800x600)
+        float flx, fly;
+        SDL_RenderWindowToLogical(renderer, (int)screenX, (int)screenY, &flx, &fly);
+
         int mx = (int)flx;
         int my = (int)fly;
 
@@ -46,15 +47,11 @@ void InputManager::HandleRawEvent(SDL_Event& ev, SDL_Renderer* renderer) {
         SDL_FingerID fid = ev.tfinger.fingerId;
 
         if (ev.type == SDL_FINGERDOWN || ev.type == SDL_FINGERMOTION) {
-            // Lógica del Joystick
             if (SDL_PointInRect(&p, &joystickArea)) {
                 joystick.isActive = true;
                 joystick.fingerID = fid;
-                
                 float centerX = joystickArea.x + (joystickArea.w / 2.0f);
                 float centerY = joystickArea.y + (joystickArea.h / 2.0f);
-
-                // Normalizamos la entrada (-1.0 a 1.0)
                 joystick.x = (mx - centerX) / (joystickArea.w / 2.0f);
                 joystick.y = (my - centerY) / (joystickArea.h / 2.0f);
 

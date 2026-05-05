@@ -34,7 +34,8 @@ int main(int argc, char* argv[]) {
 
     // Configurar aquí una sola vez
     SDL_RenderSetLogicalSize(renderer, 800, 600);
-
+    
+    SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
     // --- SISTEMAS SHADOW ---
     ShadowGFX gfx(renderer);
     ShadowAudio sfx;
