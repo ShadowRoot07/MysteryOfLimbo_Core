@@ -9,11 +9,11 @@
         android:label="Mystery of Limbo"
         android:hasCode="true"
         android:extractNativeLibs="true"
-        android:allowBackup="true">
-
-        <activity android:name=".MysteryOfLimboActivity"
+        android:allowBackup="true"
+        android:theme="@android:style/Theme.NoTitleBar.Fullscreen"> <activity android:name=".MysteryOfLimboActivity"
             android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|smallestScreenSize"
             android:exported="true"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen" 
             android:launchMode="singleInstance">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
