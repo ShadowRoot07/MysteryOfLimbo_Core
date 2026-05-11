@@ -26,10 +26,9 @@ public class MysteryOfLimboActivity extends SDLActivity {
     }
 
     @Override
-    public void onWindowFocusChanged(bool hasFocus) {
+    public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
-            // Si el usuario sale de la app y vuelve, nos aseguramos de ocultar todo de nuevo
             hideSystemUI();
         }
     }
