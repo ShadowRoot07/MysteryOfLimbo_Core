@@ -94,6 +94,11 @@ bool InputManager::IsKeyDown(SDL_Scancode k) {
     return (state && state[k]);
 }
 
+bool InputManager::IsBtnPressed(SDL_Scancode k) {
+    // Redirigimos a IsKeyPressed para centralizar la lógica de comparación de estados
+    return IsKeyPressed(k);
+}
+
 bool InputManager::IsKeyPressed(SDL_Scancode k) {
     if (k == SDL_SCANCODE_Z) return (vJump && !lastVJump) || (state && state[k] && !lastState[k]);
     if (k == SDL_SCANCODE_X) return (vAttack && !lastVAttack) || (state && state[k] && !lastState[k]);

@@ -2,11 +2,12 @@
 #define INPUT_MANAGER_H
 
 #include <SDL.h>
+#include "Common.h"
 
-struct JoystickData {
-    float x, y;          
-    bool isActive;       
-    SDL_FingerID fingerID; 
+struct JoyState {
+    float x, y;
+    bool isActive;
+    SDL_FingerID fingerID;
 };
 
 class InputManager {
@@ -15,25 +16,30 @@ public:
     void Update();
     void HandleRawEvent(SDL_Event& ev, SDL_Renderer* renderer);
 
-    // --- ÁREAS PÚBLICAS (Sincronizadas con UIManager) ---
-    SDL_Rect joystickArea;
-    SDL_Rect btnZArea;
-    SDL_Rect btnXArea;
-    SDL_Rect btnFArea;
+    // --- FUNCIONES DE ESTADO ---
+    bool IsKeyPressed(SDL_Scancode k);
+    bool IsBtnPressed(SDL_Scancode k);
+    bool IsKeyDown(SDL_Scancode k);
 
-    // --- MÉTODOS PÚBLICOS (Para que Player.cpp pueda leer el input) ---
-    bool IsKeyDown(SDL_Scancode key);
-    bool IsKeyPressed(SDL_Scancode key);
+    // --- GETTERS PARA JOYSTICK (Sin duplicados) ---
+    Vector2 GetJoyDir() const { return {joystick.x, joystick.y}; }
+    Vector2 GetJoystick() const { return {joystick.x, joystick.y}; } // Alias para Player.cpp
     SDL_Point GetJoystickScreenPos() const;
-    JoystickData GetJoystick() const { return joystick; }
+
+    // --- GETTERS PARA ÁREAS (Para UIManager.cpp) ---
+    SDL_Rect GetBtnZArea() const { return btnZArea; }
+    SDL_Rect GetBtnXArea() const { return btnXArea; }
+    SDL_Rect GetBtnFArea() const { return btnFArea; }
+    SDL_Rect GetJoyArea() const { return joystickArea; }
 
 private:
     const Uint8* state;
     Uint8 lastState[SDL_NUM_SCANCODES];
+    JoyState joystick;
 
-    JoystickData joystick;
+    SDL_Rect joystickArea;
+    SDL_Rect btnZArea, btnXArea, btnFArea;
 
-    // Estados lógicos de los botones virtuales
     bool vJump, vAttack, vDash;
     bool lastVJump, lastVAttack, lastVDash;
 };

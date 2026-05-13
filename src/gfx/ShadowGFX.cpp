@@ -1,5 +1,8 @@
 #include "gfx/ShadowGFX.h"
 #include <iostream>
+#include <SDL_ttf.h>
+#include <random>
+
 
 ShadowGFX::ShadowGFX(SDL_Renderer* r) : renderer(r) {}
 
@@ -88,3 +91,35 @@ void ShadowGFX::DrawAnimated(const std::string& id, SDL_Rect dest, int frame, bo
     SDL_RenderCopyEx(renderer, GetTexture(id), &src, &dest, 0, NULL, sdlFlip);
 }
 
+bool ShadowGFX::LoadFont(const std::string& id, const std::string& path, int size) {
+    if (TTF_WasInit() == 0 && TTF_Init() == -1) return false;
+    
+    TTF_Font* font = TTF_OpenFont(path.c_str(), size);
+    if (!font) {
+        // Reintento con ruta assets/
+        std::string altPath = "assets/" + path;
+        font = TTF_OpenFont(altPath.c_str(), size);
+    }
+    
+    if (font) {
+        fontCache[id] = font;
+        return true;
+    }
+    return false;
+}
+
+void ShadowGFX::DrawText(const std::string& text, const std::string& fontId, int x, int y, SDL_Color color, bool center) {
+    if (fontCache.count(fontId) == 0) return;
+
+    SDL_Surface* surf = TTF_RenderText_Solid(fontCache[fontId], text.c_str(), color);
+    if (!surf) return;
+
+    SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer, surf);
+    SDL_Rect dest = { x, y, surf->w, surf->h };
+    if (center) dest.x -= surf->w / 2;
+
+    SDL_RenderCopy(renderer, tex, NULL, &dest);
+    
+    SDL_FreeSurface(surf);
+    SDL_DestroyTexture(tex);
+}

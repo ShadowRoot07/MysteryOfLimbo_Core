@@ -48,4 +48,5 @@ build/gfx/ShadowGFX.o: src/gfx/ShadowGFX.cpp include/gfx/ShadowGFX.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_timer.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_version.h \
   /data/data/com.termux/files/usr/include/SDL2/SDL_locale.h \
-  /data/data/com.termux/files/usr/include/SDL2/SDL_misc.h
+  /data/data/com.termux/files/usr/include/SDL2/SDL_misc.h \
+  /data/data/com.termux/files/usr/include/SDL2/SDL_ttf.h

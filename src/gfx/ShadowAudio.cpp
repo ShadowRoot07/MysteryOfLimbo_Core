@@ -9,15 +9,21 @@ ShadowAudio::~ShadowAudio() {
 }
 
 bool ShadowAudio::Init() {
-    // Inicializamos con 44.1kHz (calidad CD) y 2 canales (Stereo)
+    // Inicializar soporte para OGG/WAV (Opcional si solo usas WAV, pero buena práctica)
+    int flags = MIX_INIT_OGG;
+    if ((Mix_Init(flags) & flags) != flags) {
+        SDL_Log("[ShadowAudio] Advertencia Mix_Init: %s", Mix_GetError());
+    }
+
+    // El ZTE a veces prefiere 44100 o 22050. Usamos 44100 para calidad.
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
-        std::cerr << "[ShadowAudio] Error al inicializar SDL_mixer: " << Mix_GetError() << std::endl;
+        SDL_Log("[ShadowAudio] Error al inicializar SDL_mixer: %s", Mix_GetError());
         return false;
     }
 
-    // Opcional: Cargar un sonido de sistema por defecto si lo tienes
-    fallbackSound = Mix_LoadWAV("assets/audio/system/fallback.wav");
-    
+    // Reservar 16 canales para que no se corten los sonidos entre sí
+    Mix_AllocateChannels(16);
+
     std::cout << "[ShadowAudio] Motor de audio iniciado correctamente." << std::endl;
     return true;
 }
@@ -25,41 +31,47 @@ bool ShadowAudio::Init() {
 void ShadowAudio::LoadSound(const std::string& id, const std::string& path) {
     if (soundCache.count(id)) return;
 
-    // Usamos RWops para que SDL_mixer pueda leer desde el APK
-    SDL_RWops* rw = SDL_RWFromFile(path.c_str(), "rb");
-    if (!rw) {
-        SDL_Log("[ShadowAudio] ERROR: No se encontró el archivo: %s", path.c_str());
-        return;
+    Mix_Chunk* chunk = nullptr;
+
+    // Creamos las strings completas PRIMERO para que existan durante toda la función
+    std::string p1 = path;
+    std::string p2 = "audio/" + path;
+    std::string p3 = "assets/audio/" + path;
+    std::string p4 = "assets/" + path;
+
+    // Ahora el array de punteros apunta a objetos que NO van a morir inmediatamente
+    const char* paths[] = { p1.c_str(), p2.c_str(), p3.c_str(), p4.c_str() };
+
+    for (int i = 0; i < 4; ++i) {
+        SDL_RWops* rw = SDL_RWFromFile(paths[i], "rb");
+        if (rw) {
+            // SDL_mixer cargará el WAV. El '1' indica que cierre el RWops al terminar.
+            chunk = Mix_LoadWAV_RW(rw, 1);
+            if (chunk) {
+                SDL_Log("[ShadowAudio] EXITO: %s cargado desde %s", id.c_str(), paths[i]);
+                break;
+            }
+        }
     }
 
-    // El '1' al final libera automáticamente el rw al terminar de cargar
-    Mix_Chunk* chunk = Mix_LoadWAV_RW(rw, 1);
     if (!chunk) {
-        SDL_Log("[ShadowAudio] ERROR de Mixer: %s", Mix_GetError());
+        SDL_Log("[ShadowAudio] ERROR: No se pudo cargar %s. Mixer: %s", id.c_str(), Mix_GetError());
         return;
     }
 
-    SDL_Log("[ShadowAudio] EXITO: Cargado %s", id.c_str());
     soundCache[id] = chunk;
 }
 
 void ShadowAudio::Play(const std::string& id, int loops) {
-    Mix_Chunk* chunkToPlay = nullptr;
-
     if (soundCache.count(id)) {
-        chunkToPlay = soundCache[id];
-    } else {
-        chunkToPlay = fallbackSound;
-    }
-
-    if (chunkToPlay) {
-        // -1 en el primer parámetro indica que SDL use el primer canal libre disponible
-        Mix_PlayChannel(-1, chunkToPlay, loops);
+        // Reproducir en el primer canal libre
+        Mix_PlayChannel(-1, soundCache[id], loops);
+    } else if (fallbackSound) {
+        Mix_PlayChannel(-1, fallbackSound, loops);
     }
 }
 
 void ShadowAudio::Clean() {
-    // Liberar cada pedazo de audio de la caché
     for (auto const& [id, chunk] : soundCache) {
         Mix_FreeChunk(chunk);
     }
@@ -71,6 +83,7 @@ void ShadowAudio::Clean() {
     }
 
     Mix_CloseAudio();
+    Mix_Quit();
     std::cout << "[ShadowAudio] Memoria de audio liberada." << std::endl;
 }
 
